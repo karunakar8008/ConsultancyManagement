@@ -1,0 +1,118 @@
+.lockup {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+
+  mat-icon {
+    width: 1em;
+    height: 1em;
+    font-size: inherit;
+  }
+}
+
+.texts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  min-width: 0;
+  line-height: 1.15;
+}
+
+.product {
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  font-family: system-ui, 'Inter', sans-serif;
+}
+
+.tagline {
+  font-weight: 500;
+  font-size: 0.72em;
+  opacity: 0.88;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Sizes */
+.size-sm .mark {
+  width: 36px;
+  height: 36px;
+  font-size: 1.15rem;
+  border-radius: 10px;
+}
+
+.size-sm .product {
+  font-size: 1.15rem;
+}
+
+.size-md .mark {
+  width: 44px;
+  height: 44px;
+  font-size: 1.35rem;
+  border-radius: 12px;
+}
+
+.size-md .product {
+  font-size: 1.35rem;
+}
+
+.size-md .tagline {
+  max-width: 200px;
+}
+
+.size-lg .mark {
+  width: 52px;
+  height: 52px;
+  font-size: 1.55rem;
+  border-radius: 14px;
+}
+
+.size-lg .product {
+  font-size: 1.5rem;
+}
+
+.size-lg .tagline {
+  font-size: 0.8rem;
+  max-width: 220px;
+}
+
+/* Light variant (sidenav / toolbar) */
+.variant-light .mark {
+  background: linear-gradient(145deg, #1e3a8a 0%, #2563eb 100%);
+  color: #f8fafc;
+}
+
+.variant-light .product {
+  color: #0f172a;
+}
+
+.variant-light .tagline {
+  color: #475569;
+}
+
+/* Dark variant (top banner) */
+.variant-dark .mark {
+  background: rgba(255, 255, 255, 0.18);
+  color: #f1f5f9;
+  box-shadow: none;
+  backdrop-filter: blur(6px);
+}
+
+.variant-dark .product {
+  color: #fff;
+}
+
+.variant-dark .tagline {
+  color: rgba(241, 245, 249, 0.85);
+}

@@ -1,0 +1,27 @@
+# Build outputs
+**/bin/
+**/obj/
+**/dist/
+**/node_modules/
+**/.angular/
+**/packages/
+
+# .NET / IDE
+*.user
+*.suo
+*.userosscache
+.vs/
+.idea/
+
+# Secrets & local overrides
+**/appsettings.*.local.json
+**/secrets.json
+.env
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# User uploads (tracked empty dir via .gitkeep only; use git add -f for .gitkeep)
+ConsultancyManagement.Api/wwwroot/uploads/

@@ -1,0 +1,38 @@
+/* Consultancy Management System — theme */
+:root {
+  --cms-primary: #1e3a8a;
+  --cms-accent: #2563eb;
+  --cms-bg: #f8fafc;
+  --cms-surface: #ffffff;
+  --cms-text: #111827;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--cms-bg);
+  color: var(--cms-text);
+}
+
+.mat-mdc-card {
+  border-radius: 12px !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+}
+
+.mat-toolbar.mat-primary,
+mat-toolbar.mat-primary {
+  background: var(--cms-primary) !important;
+}
+
+.mat-mdc-raised-button.mat-primary,
+.mat-mdc-flat-button.mat-primary {
+  --mdc-filled-button-container-color: var(--cms-accent);
+}
+
+.page-title {
+  font-size: 1.35rem;
+  font-weight: 600;
+  margin: 0 0 1rem;
+}

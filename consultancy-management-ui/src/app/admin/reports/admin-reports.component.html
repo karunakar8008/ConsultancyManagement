@@ -1,0 +1,68 @@
+<h2 class="page-title">Reports</h2>
+
+<mat-card class="panel">
+  <h3>Daily activity summary</h3>
+  <div class="row">
+    <mat-form-field appearance="outline">
+      <mat-label>Date</mat-label>
+      <input matInput [matDatepicker]="dayPicker" [(ngModel)]="dayDate" />
+      <mat-datepicker-toggle matSuffix [for]="dayPicker"></mat-datepicker-toggle>
+      <mat-datepicker #dayPicker></mat-datepicker>
+    </mat-form-field>
+    <button mat-stroked-button type="button" (click)="loadDaily()">Refresh</button>
+    <button mat-stroked-button type="button" (click)="downloadDailyCsv()">Download CSV</button>
+  </div>
+  <div class="chart-wrap">
+    <canvas baseChart [type]="'bar'" [data]="dailyChart" [options]="dailyChartOptions"></canvas>
+  </div>
+</mat-card>
+
+<mat-card class="panel">
+  <h3>Weekly summary</h3>
+  <div class="row">
+    <mat-form-field appearance="outline">
+      <mat-label>Start</mat-label>
+      <input matInput [matDatepicker]="wStartPicker" [(ngModel)]="wStartDate" />
+      <mat-datepicker-toggle matSuffix [for]="wStartPicker"></mat-datepicker-toggle>
+      <mat-datepicker #wStartPicker></mat-datepicker>
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>End</mat-label>
+      <input matInput [matDatepicker]="wEndPicker" [(ngModel)]="wEndDate" />
+      <mat-datepicker-toggle matSuffix [for]="wEndPicker"></mat-datepicker-toggle>
+      <mat-datepicker #wEndPicker></mat-datepicker>
+    </mat-form-field>
+    <button mat-stroked-button type="button" (click)="loadWeekly()">Load week</button>
+    <button mat-stroked-button type="button" (click)="downloadWeeklyCsv()">Download CSV</button>
+  </div>
+  <div class="chart-wrap">
+    <canvas baseChart [type]="'bar'" [data]="weeklyChart" [options]="weeklyChartOptions"></canvas>
+  </div>
+</mat-card>
+
+<mat-card class="panel">
+  <h3>Consultant performance</h3>
+  <div class="row">
+    <button mat-stroked-button type="button" (click)="downloadPerfCsv()">Download CSV</button>
+  </div>
+  <div class="chart-wrap tall">
+    <canvas baseChart [type]="'bar'" [data]="perfChart" [options]="perfChartOptions"></canvas>
+  </div>
+</mat-card>
+
+<mat-card class="panel">
+  <h3>Sales performance</h3>
+  <div class="row">
+    <button mat-stroked-button type="button" (click)="downloadSalesCsv()">Download CSV</button>
+  </div>
+  <div class="chart-wrap tall">
+    <canvas baseChart [type]="'bar'" [data]="salesChart" [options]="perfChartOptions"></canvas>
+  </div>
+</mat-card>
+
+<mat-expansion-panel>
+  <mat-expansion-panel-header>
+    <mat-panel-title>Raw daily summary JSON</mat-panel-title>
+  </mat-expansion-panel-header>
+  <pre class="json">{{ payload | json }}</pre>
+</mat-expansion-panel>

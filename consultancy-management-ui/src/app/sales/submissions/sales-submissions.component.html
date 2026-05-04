@@ -1,0 +1,53 @@
+<h2 class="page-title">Submissions</h2>
+<p class="hint">Choose an assigned consultant and one of your vendors. Proof file is required for new submissions; optional when updating (keeps existing if omitted).</p>
+<mat-card class="panel">
+  @if (editingId != null) {
+    <p class="edit-banner">Editing submission #{{ editingId }} — <button mat-button type="button" (click)="cancelEdit()">Cancel</button></p>
+  }
+  <form [formGroup]="form" (ngSubmit)="save()" class="grid-form">
+    <mat-form-field appearance="outline" class="wide">
+      <mat-label>Consultant</mat-label>
+      <mat-select formControlName="consultantId">
+        <mat-option [value]="0">Select…</mat-option>
+        @for (c of consultants; track c.id) {
+          <mat-option [value]="c.id">{{ c.firstName }} {{ c.lastName }} ({{ c.technology || '—' }})</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline" class="wide">
+      <mat-label>Vendor</mat-label>
+      <mat-select formControlName="vendorId">
+        <mat-option [value]="0">Select…</mat-option>
+        @for (v of vendors; track v.id) {
+          <mat-option [value]="v.id">{{ v.vendorName }} — {{ v.vendorCode }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline"><mat-label>Job title</mat-label><input matInput formControlName="jobTitle" /></mat-form-field>
+    <mat-form-field appearance="outline"><mat-label>Client</mat-label><input matInput formControlName="clientName" /></mat-form-field>
+    <mat-form-field appearance="outline"><mat-label>Date</mat-label><input matInput type="date" formControlName="submissionDate" /></mat-form-field>
+    <mat-form-field appearance="outline"><mat-label>Status</mat-label><input matInput formControlName="status" /></mat-form-field>
+    <mat-form-field appearance="outline"><mat-label>Rate</mat-label><input matInput type="number" formControlName="rate" /></mat-form-field>
+    <mat-form-field appearance="outline" class="wide"><mat-label>Notes</mat-label><input matInput formControlName="notes" /></mat-form-field>
+    <div class="wide file-row">
+      <span class="file-label">Proof file {{ editingId != null ? '(optional — replace existing)' : '(required)' }}</span>
+      <input type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.txt" (change)="onProof($event)" />
+    </div>
+    <button mat-flat-button color="primary" type="submit">{{ editingId != null ? 'Update' : 'Create' }}</button>
+  </form>
+</mat-card>
+<mat-card class="panel">
+  <table mat-table [dataSource]="rows" class="full-table">
+    <ng-container matColumnDef="code"><th mat-header-cell *matHeaderCellDef>Submission ID</th><td mat-cell *matCellDef="let r">{{ r.submissionCode }}</td></ng-container>
+    <ng-container matColumnDef="consultant"><th mat-header-cell *matHeaderCellDef>Consultant</th><td mat-cell *matCellDef="let r">{{ r.consultantName }}</td></ng-container>
+    <ng-container matColumnDef="vendor"><th mat-header-cell *matHeaderCellDef>Vendor</th><td mat-cell *matCellDef="let r">{{ r.vendorName }}</td></ng-container>
+    <ng-container matColumnDef="job"><th mat-header-cell *matHeaderCellDef>Job</th><td mat-cell *matCellDef="let r">{{ r.jobTitle }}</td></ng-container>
+    <ng-container matColumnDef="client"><th mat-header-cell *matHeaderCellDef>Client</th><td mat-cell *matCellDef="let r">{{ r.clientName }}</td></ng-container>
+    <ng-container matColumnDef="date"><th mat-header-cell *matHeaderCellDef>Date</th><td mat-cell *matCellDef="let r">{{ r.submissionDate | date }}</td></ng-container>
+    <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef>Status</th><td mat-cell *matCellDef="let r">{{ r.status }}</td></ng-container>
+    <ng-container matColumnDef="proof"><th mat-header-cell *matHeaderCellDef>Proof</th><td mat-cell *matCellDef="let r">@if (r.hasProof) { <span class="icon-actions"><button mat-icon-button type="button" color="primary" matTooltip="View" (click)="viewProof(r)"><mat-icon>visibility</mat-icon></button><button mat-icon-button type="button" matTooltip="Download" (click)="downloadProof(r)"><mat-icon>download</mat-icon></button></span> } @else { — }</td></ng-container>
+    <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef></th><td mat-cell *matCellDef="let r"><button mat-icon-button type="button" (click)="startEdit(r)" title="Edit"><mat-icon>edit</mat-icon></button></td></ng-container>
+    <tr mat-header-row *matHeaderRowDef="cols"></tr>
+    <tr mat-row *matRowDef="let row; columns: cols"></tr>
+  </table>
+</mat-card>

@@ -1,0 +1,48 @@
+<h2 class="page-title">Onboarding</h2>
+<mat-card class="panel">
+  <form [formGroup]="form" (ngSubmit)="save()" class="grid-form">
+    <mat-form-field appearance="outline" class="span-2">
+      <mat-label>Consultant</mat-label>
+      <mat-select formControlName="consultantId">
+        <mat-option [value]="0">Select consultant</mat-option>
+        @for (c of consultantOptions; track c.id) {
+          <mat-option [value]="c.id">{{ c.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>Task type</mat-label>
+      <mat-select formControlName="taskType">
+        <mat-option value="">Select task</mat-option>
+        @for (t of taskTypes; track t.key) {
+          <mat-option [value]="t.key">{{ t.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline" class="wide">
+      <mat-label>Description (optional override)</mat-label>
+      <input matInput formControlName="description" />
+    </mat-form-field>
+    <mat-form-field appearance="outline"><mat-label>Due</mat-label><input matInput type="date" formControlName="dueDate" /></mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>Status</mat-label>
+      <mat-select formControlName="status">
+        <mat-option value="Pending">Pending</mat-option>
+        <mat-option value="InProgress">In progress</mat-option>
+        <mat-option value="Completed">Completed</mat-option>
+      </mat-select>
+    </mat-form-field>
+    <button mat-flat-button color="primary" type="submit">Add task</button>
+  </form>
+</mat-card>
+<mat-card class="panel">
+  <table mat-table [dataSource]="rows" class="full-table">
+    <ng-container matColumnDef="consultant"><th mat-header-cell *matHeaderCellDef>Consultant</th><td mat-cell *matCellDef="let r">{{ r['consultantName'] }}</td></ng-container>
+    <ng-container matColumnDef="task"><th mat-header-cell *matHeaderCellDef>Task</th><td mat-cell *matCellDef="let r">{{ r['taskName'] }}</td></ng-container>
+    <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef>Status</th><td mat-cell *matCellDef="let r">{{ r['status'] }}</td></ng-container>
+    <ng-container matColumnDef="due"><th mat-header-cell *matHeaderCellDef>Due</th><td mat-cell *matCellDef="let r">{{ r['dueDate'] | date }}</td></ng-container>
+    <ng-container matColumnDef="completed"><th mat-header-cell *matHeaderCellDef>Completed</th><td mat-cell *matCellDef="let r">{{ r['completedDate'] | date }}</td></ng-container>
+    <tr mat-header-row *matHeaderRowDef="cols"></tr>
+    <tr mat-row *matRowDef="let row; columns: cols"></tr>
+  </table>
+</mat-card>

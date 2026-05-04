@@ -1,0 +1,72 @@
+.brand-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.85rem 1.5rem;
+  background: linear-gradient(118deg, #0c1222 0%, #1e3a8a 42%, #1d4ed8 100%);
+  color: #f8fafc;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.25);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.client-block {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.client-logo {
+  flex-shrink: 0;
+  line-height: 0;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.2));
+}
+
+.client-logo app-client-logo-mark {
+  --client-logo-size: 40px;
+}
+
+.client-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.client-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(226, 232, 240, 0.75);
+}
+
+.client-name {
+  font-size: clamp(1.05rem, 2.4vw, 1.35rem);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #fff;
+  word-break: break-word;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+@media (max-width: 520px) {
+  .brand-banner {
+    padding-inline: 1rem;
+  }
+
+  .client-block {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .client-text {
+    align-items: flex-start;
+    text-align: left;
+  }
+}

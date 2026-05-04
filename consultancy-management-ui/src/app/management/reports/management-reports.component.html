@@ -1,0 +1,94 @@
+<h2 class="page-title">Reports</h2>
+
+<mat-card class="panel">
+  <div class="row">
+    <button mat-flat-button (click)="load('perf')" [color]="view === 'perf' ? 'primary' : undefined">Consultant performance</button>
+    <button mat-flat-button (click)="load('sales')" [color]="view === 'sales' ? 'primary' : undefined">Sales performance</button>
+    <button mat-flat-button (click)="load('subs')" [color]="view === 'subs' ? 'primary' : undefined">Submissions table</button>
+    <button mat-flat-button (click)="load('onb')" [color]="view === 'onb' ? 'primary' : undefined">Onboarding status</button>
+  </div>
+
+  <div class="row csv-row">
+    @if (view === 'perf') {
+      <button mat-stroked-button type="button" (click)="downloadCsv('perf')">Download CSV</button>
+    }
+    @if (view === 'sales') {
+      <button mat-stroked-button type="button" (click)="downloadCsv('sales')">Download CSV</button>
+    }
+    @if (view === 'subs') {
+      <button mat-stroked-button type="button" (click)="downloadCsv('subs')">Download CSV</button>
+    }
+    @if (view === 'onb') {
+      <button mat-stroked-button type="button" (click)="downloadCsv('onb')">Download CSV</button>
+    }
+  </div>
+
+  @if (view === 'perf') {
+    <div class="chart-wrap">
+      <canvas baseChart [type]="'bar'" [data]="perfChart" [options]="barOptions"></canvas>
+    </div>
+  }
+  @if (view === 'sales') {
+    <div class="chart-wrap">
+      <canvas baseChart [type]="'bar'" [data]="salesChart" [options]="barOptions"></canvas>
+    </div>
+  }
+</mat-card>
+
+@if (view === 'subs') {
+  <mat-card class="panel">
+    <table mat-table [dataSource]="subsRows" class="full-table">
+      <ng-container matColumnDef="consultant">
+        <th mat-header-cell *matHeaderCellDef>Consultant</th>
+        <td mat-cell *matCellDef="let r">{{ r['consultantName'] }}</td>
+      </ng-container>
+      <ng-container matColumnDef="sales">
+        <th mat-header-cell *matHeaderCellDef>Sales</th>
+        <td mat-cell *matCellDef="let r">{{ r['salesRecruiterName'] }}</td>
+      </ng-container>
+      <ng-container matColumnDef="vendor">
+        <th mat-header-cell *matHeaderCellDef>Vendor</th>
+        <td mat-cell *matCellDef="let r">{{ r['vendorName'] }}</td>
+      </ng-container>
+      <ng-container matColumnDef="job">
+        <th mat-header-cell *matHeaderCellDef>Job</th>
+        <td mat-cell *matCellDef="let r">{{ r['jobTitle'] }}</td>
+      </ng-container>
+      <ng-container matColumnDef="date">
+        <th mat-header-cell *matHeaderCellDef>Date</th>
+        <td mat-cell *matCellDef="let r">{{ r['submissionDate'] | date: 'mediumDate' }}</td>
+      </ng-container>
+      <ng-container matColumnDef="status">
+        <th mat-header-cell *matHeaderCellDef>Status</th>
+        <td mat-cell *matCellDef="let r">{{ r['status'] }}</td>
+      </ng-container>
+      <tr mat-header-row *matHeaderRowDef="subsCols"></tr>
+      <tr mat-row *matRowDef="let row; columns: subsCols"></tr>
+    </table>
+  </mat-card>
+}
+
+@if (view === 'onb') {
+  <mat-card class="panel">
+    <table mat-table [dataSource]="onbRows" class="full-table">
+      <ng-container matColumnDef="name">
+        <th mat-header-cell *matHeaderCellDef>Consultant</th>
+        <td mat-cell *matCellDef="let r">{{ r['consultantName'] }}</td>
+      </ng-container>
+      <ng-container matColumnDef="total">
+        <th mat-header-cell *matHeaderCellDef>Total tasks</th>
+        <td mat-cell *matCellDef="let r">{{ r['totalTasks'] }}</td>
+      </ng-container>
+      <ng-container matColumnDef="done">
+        <th mat-header-cell *matHeaderCellDef>Completed</th>
+        <td mat-cell *matCellDef="let r">{{ r['completedTasks'] }}</td>
+      </ng-container>
+      <ng-container matColumnDef="pend">
+        <th mat-header-cell *matHeaderCellDef>Pending</th>
+        <td mat-cell *matCellDef="let r">{{ r['pendingTasks'] }}</td>
+      </ng-container>
+      <tr mat-header-row *matHeaderRowDef="onbCols"></tr>
+      <tr mat-row *matRowDef="let row; columns: onbCols"></tr>
+    </table>
+  </mat-card>
+}

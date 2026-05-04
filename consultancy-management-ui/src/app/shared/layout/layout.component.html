@@ -1,0 +1,45 @@
+<mat-sidenav-container class="shell">
+  <mat-sidenav mode="side" opened class="sidenav">
+    <div class="sidenav-brand">
+      <app-brand-lockup size="lg" variant="light" />
+    </div>
+    <mat-nav-list>
+      @for (item of navItems; track item.path) {
+        <a mat-list-item [routerLink]="item.path" routerLinkActive="active-link">
+          <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
+          <span matListItemTitle>{{ item.label }}</span>
+        </a>
+      }
+      <a mat-list-item (click)="logout()">
+        <mat-icon matListItemIcon>logout</mat-icon>
+        <span matListItemTitle>Logout</span>
+      </a>
+    </mat-nav-list>
+  </mat-sidenav>
+
+  <mat-sidenav-content>
+    <mat-toolbar class="toolbar toolbar-top">
+      <div class="toolbar-row">
+        <div class="toolbar-cell toolbar-cell-logo">
+          <app-client-logo-mark [label]="clientDisplayName + ' logo'" />
+        </div>
+        <div class="toolbar-cell toolbar-cell-name">
+          <span class="toolbar-client">{{ clientDisplayName }}</span>
+        </div>
+        <div class="toolbar-cell toolbar-cell-user" [class.toolbar-cell-user--empty]="!userName()">
+          @if (userName()) {
+            <div class="user-block">
+              <span class="user-name">{{ userName() }}</span>
+              @if (employeeId()) {
+                <span class="user-id">{{ employeeId() }}</span>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    </mat-toolbar>
+    <main class="content">
+      <router-outlet />
+    </main>
+  </mat-sidenav-content>
+</mat-sidenav-container>

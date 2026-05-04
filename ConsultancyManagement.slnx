@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="ConsultancyManagement.Api/ConsultancyManagement.Api.csproj" />
+  <Project Path="ConsultancyManagement.Core/ConsultancyManagement.Core.csproj" />
+  <Project Path="ConsultancyManagement.Infrastructure/ConsultancyManagement.Infrastructure.csproj" />
+</Solution>

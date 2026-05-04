@@ -1,0 +1,21 @@
+.panel {
+  margin-bottom: 1.25rem;
+  padding: 1rem 1.25rem 1.5rem;
+}
+.grid-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem 1rem;
+  align-items: center;
+}
+.span-2 {
+  grid-column: 1 / -1;
+}
+@media (min-width: 720px) {
+  .span-2 {
+    grid-column: span 2;
+  }
+}
+.full-table {
+  width: 100%;
+}

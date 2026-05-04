@@ -1,0 +1,98 @@
+<h2 class="page-title">Assignments</h2>
+<mat-card class="panel">
+  <h3>Consultant → sales recruiter</h3>
+  <form [formGroup]="form" (ngSubmit)="save()" class="grid-form">
+    <mat-form-field appearance="outline">
+      <mat-label>Consultant</mat-label>
+      <mat-select formControlName="consultantId">
+        @for (c of consultants; track c['id']) {
+          <mat-option [value]="c['id']">{{ c['firstName'] }} {{ c['lastName'] }} ({{ c['userEmployeeId'] }})</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>Sales recruiter</mat-label>
+      <mat-select formControlName="salesRecruiterId">
+        @for (s of salesRecruiters; track s['id']) {
+          <mat-option [value]="s['id']">{{ s['firstName'] }} {{ s['lastName'] }} ({{ s['userEmployeeId'] }})</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline"><mat-label>Start date</mat-label><input matInput type="date" formControlName="startDate" /></mat-form-field>
+    <button mat-flat-button color="primary" type="submit">Assign</button>
+  </form>
+</mat-card>
+<mat-card class="panel">
+  <table mat-table [dataSource]="rows" class="full-table">
+    <ng-container matColumnDef="consultant"><th mat-header-cell *matHeaderCellDef>Consultant</th><td mat-cell *matCellDef="let r">{{ r['consultantName'] }}</td></ng-container>
+    <ng-container matColumnDef="sales"><th mat-header-cell *matHeaderCellDef>Sales</th><td mat-cell *matCellDef="let r">{{ r['salesRecruiterName'] }}</td></ng-container>
+    <ng-container matColumnDef="start"><th mat-header-cell *matHeaderCellDef>Start</th><td mat-cell *matCellDef="let r">{{ r['startDate'] | date }}</td></ng-container>
+    <ng-container matColumnDef="end"><th mat-header-cell *matHeaderCellDef>End</th><td mat-cell *matCellDef="let r">{{ r['endDate'] | date }}</td></ng-container>
+    <ng-container matColumnDef="active"><th mat-header-cell *matHeaderCellDef>Active</th><td mat-cell *matCellDef="let r">{{ r['isActive'] }}</td></ng-container>
+    <ng-container matColumnDef="actions">
+      <th mat-header-cell *matHeaderCellDef></th>
+      <td mat-cell *matCellDef="let r">
+        <button mat-stroked-button type="button" (click)="beginEditCs(r)">Edit</button>
+      </td>
+    </ng-container>
+    <tr mat-header-row *matHeaderRowDef="cols"></tr>
+    <tr mat-row *matRowDef="let row; columns: cols"></tr>
+  </table>
+  @if (editingCsId !== null) {
+    <form [formGroup]="editCs" (ngSubmit)="saveEditCs()" class="grid-form" style="margin-top: 1rem">
+      <mat-form-field appearance="outline"><mat-label>End date</mat-label><input matInput type="date" formControlName="endDate" /></mat-form-field>
+      <mat-checkbox formControlName="isActive">Active</mat-checkbox>
+      <button mat-flat-button color="primary" type="submit">Save</button>
+      <button mat-stroked-button type="button" (click)="cancelEditCs()">Cancel</button>
+    </form>
+  }
+</mat-card>
+
+<mat-card class="panel">
+  <h3>Sales recruiter → management</h3>
+  <form [formGroup]="smForm" (ngSubmit)="saveSalesMgmt()" class="grid-form">
+    <mat-form-field appearance="outline">
+      <mat-label>Sales recruiter</mat-label>
+      <mat-select formControlName="salesRecruiterId">
+        @for (s of salesRecruiters; track s['id']) {
+          <mat-option [value]="s['id']">{{ s['firstName'] }} {{ s['lastName'] }} ({{ s['userEmployeeId'] }})</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>Management</mat-label>
+      <mat-select formControlName="managementUserId">
+        @for (m of managementUsers; track m['id']) {
+          <mat-option [value]="m['id']">{{ m['firstName'] }} {{ m['lastName'] }} ({{ m['userEmployeeId'] }})</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline"><mat-label>Start date</mat-label><input matInput type="date" formControlName="startDate" /></mat-form-field>
+    <button mat-flat-button color="primary" type="submit">Assign</button>
+  </form>
+</mat-card>
+<mat-card class="panel">
+  <table mat-table [dataSource]="smRows" class="full-table">
+    <ng-container matColumnDef="sales"><th mat-header-cell *matHeaderCellDef>Sales</th><td mat-cell *matCellDef="let r">{{ r['salesRecruiterName'] }}</td></ng-container>
+    <ng-container matColumnDef="management"><th mat-header-cell *matHeaderCellDef>Management</th><td mat-cell *matCellDef="let r">{{ r['managementUserName'] }}</td></ng-container>
+    <ng-container matColumnDef="start"><th mat-header-cell *matHeaderCellDef>Start</th><td mat-cell *matCellDef="let r">{{ r['startDate'] | date }}</td></ng-container>
+    <ng-container matColumnDef="end"><th mat-header-cell *matHeaderCellDef>End</th><td mat-cell *matCellDef="let r">{{ r['endDate'] | date }}</td></ng-container>
+    <ng-container matColumnDef="active"><th mat-header-cell *matHeaderCellDef>Active</th><td mat-cell *matCellDef="let r">{{ r['isActive'] }}</td></ng-container>
+    <ng-container matColumnDef="actions">
+      <th mat-header-cell *matHeaderCellDef></th>
+      <td mat-cell *matCellDef="let r">
+        <button mat-stroked-button type="button" (click)="beginEditSm(r)">Edit</button>
+      </td>
+    </ng-container>
+    <tr mat-header-row *matHeaderRowDef="smCols"></tr>
+    <tr mat-row *matRowDef="let row; columns: smCols"></tr>
+  </table>
+  @if (editingSmId !== null) {
+    <form [formGroup]="editSm" (ngSubmit)="saveEditSm()" class="grid-form" style="margin-top: 1rem">
+      <mat-form-field appearance="outline"><mat-label>End date</mat-label><input matInput type="date" formControlName="endDate" /></mat-form-field>
+      <mat-checkbox formControlName="isActive">Active</mat-checkbox>
+      <button mat-flat-button color="primary" type="submit">Save</button>
+      <button mat-stroked-button type="button" (click)="cancelEditSm()">Cancel</button>
+    </form>
+  }
+</mat-card>

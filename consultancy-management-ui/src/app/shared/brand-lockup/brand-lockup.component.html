@@ -1,0 +1,11 @@
+<div class="lockup" [class.size-sm]="size === 'sm'" [class.size-md]="size === 'md'" [class.size-lg]="size === 'lg'" [class.variant-dark]="variant === 'dark'" [class.variant-light]="variant === 'light'">
+  <div class="mark" aria-hidden="true">
+    <mat-icon>hub</mat-icon>
+  </div>
+  <div class="texts">
+    <span class="product">CMS</span>
+    @if (size !== 'sm') {
+      <span class="tagline">Consultancy Management</span>
+    }
+  </div>
+</div>

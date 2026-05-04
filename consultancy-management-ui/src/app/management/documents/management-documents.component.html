@@ -1,0 +1,105 @@
+<h2 class="page-title">Documents</h2>
+
+<mat-card class="panel">
+  <h3>All files (repository)</h3>
+  <p class="hint">Consultant uploads, vendor contact proofs, submission proofs, and interview invites — newest first. <strong>Admin</strong> and <strong>Management</strong> see the full repository. Use the eye to preview in a new tab (PDF/images) or the arrow to save the file.</p>
+  <table mat-table [dataSource]="catalog" class="full-table">
+    <ng-container matColumnDef="destination">
+      <th mat-header-cell *matHeaderCellDef>Destination / summary</th>
+      <td mat-cell *matCellDef="let r">{{ r.title }} — {{ r.subtitle }}</td>
+    </ng-container>
+    <ng-container matColumnDef="kind">
+      <th mat-header-cell *matHeaderCellDef>Type</th>
+      <td mat-cell *matCellDef="let r">{{ kindLabel(r.kind) }}</td>
+    </ng-container>
+    <ng-container matColumnDef="context">
+      <th mat-header-cell *matHeaderCellDef>People</th>
+      <td mat-cell *matCellDef="let r">
+        @if (r.consultantName) { <span>C: {{ r.consultantName }}</span> } @if (r.salesRecruiterName) { <span> · S: {{ r.salesRecruiterName }}</span> }
+        @if (r.vendorName) { <span> · V: {{ r.vendorName }}</span> }
+      </td>
+    </ng-container>
+    <ng-container matColumnDef="file">
+      <th mat-header-cell *matHeaderCellDef>File</th>
+      <td mat-cell *matCellDef="let r">{{ r.fileName }}</td>
+    </ng-container>
+    <ng-container matColumnDef="date">
+      <th mat-header-cell *matHeaderCellDef>Date</th>
+      <td mat-cell *matCellDef="let r">{{ r.at | date : 'short' }}</td>
+    </ng-container>
+    <ng-container matColumnDef="actions">
+      <th mat-header-cell *matHeaderCellDef>View / save</th>
+      <td mat-cell *matCellDef="let r">
+        @if (r.hasFile) {
+          <span class="icon-actions">
+            <button mat-icon-button type="button" color="primary" matTooltip="View in new tab" (click)="viewCatalogItem(r)"><mat-icon>visibility</mat-icon></button>
+            <button mat-icon-button type="button" matTooltip="Download" (click)="downloadCatalogItem(r)"><mat-icon>download</mat-icon></button>
+          </span>
+        } @else { — }
+      </td>
+    </ng-container>
+    <tr mat-header-row *matHeaderRowDef="catalogCols"></tr>
+    <tr mat-row *matRowDef="let row; columns: catalogCols"></tr>
+  </table>
+</mat-card>
+
+<mat-card class="panel">
+  <h3>Upload for consultant</h3>
+  <p class="hint">Use this to place an offer letter or other official documents on a consultant’s record. They can download from their Documents page.</p>
+  <form [formGroup]="uploadForm" (ngSubmit)="upload()" class="grid-form">
+    <mat-form-field appearance="outline" class="wide">
+      <mat-label>Consultant</mat-label>
+      <mat-select formControlName="consultantId">
+        <mat-option [value]="0">Select…</mat-option>
+        @for (c of consultants; track c.id) {
+          <mat-option [value]="c.id">{{ c.firstName }} {{ c.lastName }} — {{ c.email }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline" class="wide">
+      <mat-label>Document type</mat-label>
+      <mat-select formControlName="documentType">
+        <mat-option value="OfferLetter">Offer letter</mat-option>
+        <mat-option value="BackgroundCheck">Background check</mat-option>
+        <mat-option value="ManagementRequest">Management request (other)</mat-option>
+        <mat-option value="Resume">Resume (on behalf)</mat-option>
+        <mat-option value="Other">Other</mat-option>
+      </mat-select>
+    </mat-form-field>
+    <div class="wide file-row">
+      <span class="file-label">File</span>
+      <input type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.txt" (change)="onMgmtFile($event)" />
+    </div>
+    <button mat-flat-button color="primary" type="submit">Upload</button>
+  </form>
+</mat-card>
+
+<mat-card class="panel">
+  <h3>Review queue</h3>
+  <form [formGroup]="reviewForm" (ngSubmit)="review()" class="grid-form">
+    <mat-form-field appearance="outline"><mat-label>Document Id</mat-label><input matInput type="number" formControlName="id" /></mat-form-field>
+    <mat-form-field appearance="outline"><mat-label>Status</mat-label><input matInput formControlName="status" /></mat-form-field>
+    <button mat-stroked-button type="submit">Update review</button>
+  </form>
+</mat-card>
+
+<mat-card class="panel">
+  <table mat-table [dataSource]="rows" class="full-table">
+    <ng-container matColumnDef="consultant"><th mat-header-cell *matHeaderCellDef>Consultant</th><td mat-cell *matCellDef="let r">{{ r['consultantName'] }}</td></ng-container>
+    <ng-container matColumnDef="type"><th mat-header-cell *matHeaderCellDef>Type</th><td mat-cell *matCellDef="let r">{{ r['documentType'] }}</td></ng-container>
+    <ng-container matColumnDef="file"><th mat-header-cell *matHeaderCellDef>File</th><td mat-cell *matCellDef="let r">{{ r['fileName'] }}</td></ng-container>
+    <ng-container matColumnDef="uploaded"><th mat-header-cell *matHeaderCellDef>Uploaded</th><td mat-cell *matCellDef="let r">{{ r['uploadedAt'] | date }}</td></ng-container>
+    <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef>Status</th><td mat-cell *matCellDef="let r">{{ r['status'] }}</td></ng-container>
+    <ng-container matColumnDef="fileActions">
+      <th mat-header-cell *matHeaderCellDef>View / save</th>
+      <td mat-cell *matCellDef="let r">
+        <span class="icon-actions">
+          <button mat-icon-button type="button" color="primary" matTooltip="View in new tab" (click)="viewQueueDoc(r)"><mat-icon>visibility</mat-icon></button>
+          <button mat-icon-button type="button" matTooltip="Download" (click)="downloadQueueDoc(r)"><mat-icon>download</mat-icon></button>
+        </span>
+      </td>
+    </ng-container>
+    <tr mat-header-row *matHeaderRowDef="cols"></tr>
+    <tr mat-row *matRowDef="let row; columns: cols"></tr>
+  </table>
+</mat-card>
