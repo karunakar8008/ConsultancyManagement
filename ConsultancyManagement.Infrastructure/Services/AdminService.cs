@@ -967,4 +967,26 @@ public class AdminService : IAdminService
         await _db.SaveChangesAsync();
         return (true, null);
     }
+
+    public async Task<IReadOnlyList<InterviewCalendarEventDto>> GetInterviewCalendarAsync(DateTime fromUtc, DateTime toUtc)
+    {
+        return await _db.Interviews.AsNoTracking()
+            .Where(i => i.InterviewDate < toUtc &&
+                (!i.InterviewEndDate.HasValue
+                    ? i.InterviewDate >= fromUtc
+                    : i.InterviewEndDate.Value >= fromUtc))
+            .OrderBy(i => i.InterviewDate)
+            .Select(i => new InterviewCalendarEventDto
+            {
+                Id = i.Id,
+                InterviewCode = i.InterviewCode,
+                JobTitle = i.Submission.JobTitle,
+                ConsultantName = i.Submission.Consultant.FirstName + " " + i.Submission.Consultant.LastName,
+                SalesRecruiterName = i.Submission.SalesRecruiter.FirstName + " " + i.Submission.SalesRecruiter.LastName,
+                InterviewDate = i.InterviewDate,
+                InterviewEndDate = i.InterviewEndDate,
+                InterviewMode = i.InterviewMode,
+                Status = i.Status
+            }).ToListAsync();
+    }
 }

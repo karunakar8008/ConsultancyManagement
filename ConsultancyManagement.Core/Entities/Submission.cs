@@ -13,6 +13,8 @@ public class Submission
     public string Status { get; set; } = "Submitted";
     public decimal? Rate { get; set; }
     public string? Notes { get; set; }
+    /// <summary>Consultant updates about communication with the vendor (separate from recruiter Notes).</summary>
+    public string? ConsultantCommunication { get; set; }
     /// <summary>Proof file path (relative under wwwroot). Required for new submissions via API.</summary>
     public string? ProofFilePath { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

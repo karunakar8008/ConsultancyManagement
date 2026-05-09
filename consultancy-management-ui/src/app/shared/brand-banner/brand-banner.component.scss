@@ -4,11 +4,29 @@
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
-  padding: 0.85rem 1.5rem;
-  background: linear-gradient(118deg, #0c1222 0%, #1e3a8a 42%, #1d4ed8 100%);
+  padding: 1rem 1.75rem;
+  position: relative;
+  z-index: 2;
+  background: linear-gradient(
+    118deg,
+    #0f172a 0%,
+    var(--cms-primary-deep, #1e3a8a) 38%,
+    var(--cms-primary, #2563eb) 72%,
+    var(--cms-accent, #0ea5e9) 115%
+  );
   color: #f8fafc;
-  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.25);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 4px 24px rgba(15, 23, 42, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.brand-banner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, transparent 45%);
 }
 
 .client-block {
@@ -17,16 +35,18 @@
   align-items: center;
   gap: 0.85rem;
   min-width: 0;
+  position: relative;
+  z-index: 1;
 }
 
 .client-logo {
   flex-shrink: 0;
   line-height: 0;
-  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.2));
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.25));
 }
 
 .client-logo app-client-logo-mark {
-  --client-logo-size: 40px;
+  --client-logo-size: 42px;
 }
 
 .client-text {
@@ -39,20 +59,22 @@
 }
 
 .client-label {
-  font-size: 0.65rem;
-  font-weight: 600;
-  letter-spacing: 0.14em;
+  font-size: 0.62rem;
+  font-weight: 700;
+  font-family: var(--cms-font-display, 'Plus Jakarta Sans', sans-serif);
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: rgba(226, 232, 240, 0.75);
+  color: rgba(226, 232, 240, 0.72);
 }
 
 .client-name {
-  font-size: clamp(1.05rem, 2.4vw, 1.35rem);
+  font-family: var(--cms-font-display, 'Plus Jakarta Sans', sans-serif);
+  font-size: clamp(1.08rem, 2.5vw, 1.4rem);
   font-weight: 800;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   color: #fff;
   word-break: break-word;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.35);
 }
 
 @media (max-width: 520px) {

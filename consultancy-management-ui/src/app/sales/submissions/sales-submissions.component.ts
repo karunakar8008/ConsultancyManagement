@@ -42,7 +42,7 @@ export class SalesSubmissionsComponent implements OnInit {
   private readonly toast = inject(ToastrService);
   private readonly fb = inject(FormBuilder);
 
-  cols = ['code', 'consultant', 'vendor', 'job', 'client', 'date', 'status', 'proof', 'actions'];
+  cols = ['code', 'consultant', 'vendor', 'job', 'client', 'date', 'status', 'notes', 'proof', 'actions'];
   rows: SalesSubmissionRow[] = [];
   consultants: AssignedConsultantOption[] = [];
   vendors: VendorRow[] = [];
@@ -133,6 +133,11 @@ export class SalesSubmissionsComponent implements OnInit {
       next: (blob) => triggerBlobDownload(blob, `${row.submissionCode}-proof`),
       error: () => this.toast.error('Download failed')
     });
+  }
+
+  textOrDash(value: string | null | undefined): string {
+    const t = value?.trim();
+    return t ? t : '—';
   }
 
   save(): void {

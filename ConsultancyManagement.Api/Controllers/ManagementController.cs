@@ -34,6 +34,9 @@ public class ManagementController : ControllerBase
     [HttpGet("consultants")]
     public async Task<IActionResult> Consultants() => Ok(await _svc.GetConsultantsAsync());
 
+    [HttpGet("sales-recruiters")]
+    public async Task<IActionResult> SalesRecruiters() => Ok(await _svc.GetSalesRecruitersAsync());
+
     [HttpGet("consultants/{id:int}/activities")]
     public async Task<IActionResult> Activities(int id) => Ok(await _svc.GetConsultantActivitiesAsync(id));
 
@@ -111,7 +114,11 @@ public class ManagementController : ControllerBase
         var userId = UserContextHelper.GetUserId(User);
         if (string.IsNullOrEmpty(userId)) return Unauthorized();
         var (ok, err) = await _svc.ReviewDocumentAsync(userId, id, dto);
-        if (!ok) return NotFound(new { message = err });
+        if (!ok)
+        {
+            if (err == "Document not found.") return NotFound(new { message = err });
+            return BadRequest(new { message = err });
+        }
         return Ok(new { message = "Document review saved successfully" });
     }
 }

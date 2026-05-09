@@ -1,5 +1,6 @@
 export const environment = {
   production: true,
-  apiBaseUrl: 'http://localhost:7200/api',
-  clientDisplayName: 'AppLabsTechSolutions'
+  apiBaseUrl: 'https://api.applabstechsol.com/api',
+  clientDisplayName: 'AppLabs Tech Solutions',
+  clientTabTitle: 'applabstechsolution'
 };

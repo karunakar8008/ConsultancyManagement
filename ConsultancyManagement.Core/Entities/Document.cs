@@ -11,6 +11,10 @@ public class Document
     public DateTime UploadedAt { get; set; } = DateTime.UtcNow;
     public DateTime? ReviewedAt { get; set; }
     public string? ReviewedByUserId { get; set; }
+    /// <summary>Set when an Admin reviews the document; blocks further changes except by Admin.</summary>
+    public DateTime? AdminReviewLockedAt { get; set; }
+    /// <summary>UserRole name of the highest reviewer tier applied (Admin, Management, SalesRecruiter).</summary>
+    public string? LastReviewAuthority { get; set; }
 
     public Consultant Consultant { get; set; } = null!;
 }

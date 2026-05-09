@@ -1,6 +1,8 @@
 export const environment = {
   production: false,
   apiBaseUrl: 'http://localhost:7200/api',
-  /** Shown top-right; change per deployment / tenant */
-  clientDisplayName: 'AppLabsTechSolutions'
+  /** Large title in the main header bar */
+  clientDisplayName: 'AppLabs Tech Solutions',
+  /** Browser tab title (compact / URL-style); avoids generic product labels like “CMS” */
+  clientTabTitle: 'applabstechsolution'
 };

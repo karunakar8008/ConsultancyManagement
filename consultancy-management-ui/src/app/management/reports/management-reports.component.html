@@ -1,12 +1,155 @@
 <h2 class="page-title">Reports</h2>
 
 <mat-card class="panel">
+  <h3>Daily activity summary</h3>
+  <p class="hint">
+    Organization-wide, one consultant, or one sales recruiter — for this <strong>daily</strong> report only.
+  </p>
   <div class="row">
-    <button mat-flat-button (click)="load('perf')" [color]="view === 'perf' ? 'primary' : undefined">Consultant performance</button>
-    <button mat-flat-button (click)="load('sales')" [color]="view === 'sales' ? 'primary' : undefined">Sales performance</button>
-    <button mat-flat-button (click)="load('subs')" [color]="view === 'subs' ? 'primary' : undefined">Submissions table</button>
-    <button mat-flat-button (click)="load('onb')" [color]="view === 'onb' ? 'primary' : undefined">Onboarding status</button>
+    <mat-form-field appearance="outline">
+      <mat-label>Scope</mat-label>
+      <mat-select [(ngModel)]="dailySummaryScope" (ngModelChange)="onDailySummaryScopeChange()" name="mdailyScope">
+        <mat-option value="all">Organization (combined)</mat-option>
+        <mat-option value="consultant">Consultant</mat-option>
+        <mat-option value="sales">Sales recruiter</mat-option>
+      </mat-select>
+    </mat-form-field>
+    @if (dailySummaryScope === 'consultant') {
+      <mat-form-field appearance="outline">
+        <mat-label>Consultant</mat-label>
+        <mat-select [(ngModel)]="dailySummaryConsultantId" name="mdailyC">
+          <mat-option [value]="null">Select…</mat-option>
+          @for (c of consultants; track c.id) {
+            <mat-option [value]="c.id">{{ c.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    }
+    @if (dailySummaryScope === 'sales') {
+      <mat-form-field appearance="outline">
+        <mat-label>Sales recruiter</mat-label>
+        <mat-select [(ngModel)]="dailySummarySalesId" name="mdailyS">
+          <mat-option [value]="null">Select…</mat-option>
+          @for (s of salesRecruiters; track s.id) {
+            <mat-option [value]="s.id">{{ s.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    }
+    <mat-form-field appearance="outline">
+      <mat-label>Date</mat-label>
+      <input matInput [matDatepicker]="dayPicker" [(ngModel)]="dayDate" name="mday" />
+      <mat-datepicker-toggle matSuffix [for]="dayPicker"></mat-datepicker-toggle>
+      <mat-datepicker #dayPicker></mat-datepicker>
+    </mat-form-field>
+    <button mat-stroked-button type="button" (click)="loadDaily()">View / refresh</button>
+    <button mat-stroked-button type="button" (click)="downloadDailyCsv()">Download CSV</button>
   </div>
+  <div class="chart-wrap">
+    <canvas baseChart [type]="'bar'" [data]="dailyChart" [options]="dailyChartOptions"></canvas>
+  </div>
+</mat-card>
+
+<mat-card class="panel">
+  <h3>Weekly summary</h3>
+  <p class="hint">
+    Choose scope <strong>separately</strong> for weekly (independent of daily above).
+  </p>
+  <div class="row">
+    <mat-form-field appearance="outline">
+      <mat-label>Scope</mat-label>
+      <mat-select [(ngModel)]="weeklySummaryScope" (ngModelChange)="onWeeklySummaryScopeChange()" name="mweeklyScope">
+        <mat-option value="all">Organization (combined)</mat-option>
+        <mat-option value="consultant">Consultant</mat-option>
+        <mat-option value="sales">Sales recruiter</mat-option>
+      </mat-select>
+    </mat-form-field>
+    @if (weeklySummaryScope === 'consultant') {
+      <mat-form-field appearance="outline">
+        <mat-label>Consultant</mat-label>
+        <mat-select [(ngModel)]="weeklySummaryConsultantId" name="mweeklyC">
+          <mat-option [value]="null">Select…</mat-option>
+          @for (c of consultants; track c.id) {
+            <mat-option [value]="c.id">{{ c.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    }
+    @if (weeklySummaryScope === 'sales') {
+      <mat-form-field appearance="outline">
+        <mat-label>Sales recruiter</mat-label>
+        <mat-select [(ngModel)]="weeklySummarySalesId" name="mweeklyS">
+          <mat-option [value]="null">Select…</mat-option>
+          @for (s of salesRecruiters; track s.id) {
+            <mat-option [value]="s.id">{{ s.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    }
+    <mat-form-field appearance="outline">
+      <mat-label>Start</mat-label>
+      <input matInput [matDatepicker]="wStartPicker" [(ngModel)]="wStartDate" name="mwStart" />
+      <mat-datepicker-toggle matSuffix [for]="wStartPicker"></mat-datepicker-toggle>
+      <mat-datepicker #wStartPicker></mat-datepicker>
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>End</mat-label>
+      <input matInput [matDatepicker]="wEndPicker" [(ngModel)]="wEndDate" name="mwEnd" />
+      <mat-datepicker-toggle matSuffix [for]="wEndPicker"></mat-datepicker-toggle>
+      <mat-datepicker #wEndPicker></mat-datepicker>
+    </mat-form-field>
+    <button mat-stroked-button type="button" (click)="loadWeekly()">View / refresh</button>
+    <button mat-stroked-button type="button" (click)="downloadWeeklyCsv()">Download CSV</button>
+  </div>
+  <div class="chart-wrap">
+    <canvas baseChart [type]="'bar'" [data]="weeklyChart" [options]="weeklyChartOptions"></canvas>
+  </div>
+</mat-card>
+
+<mat-card class="panel">
+  <div class="row">
+    <button mat-flat-button (click)="load('perf')" [color]="view === 'perf' ? 'primary' : undefined">
+      Consultant performance
+    </button>
+    <button mat-flat-button (click)="load('sales')" [color]="view === 'sales' ? 'primary' : undefined">
+      Sales performance
+    </button>
+    <button mat-flat-button (click)="load('subs')" [color]="view === 'subs' ? 'primary' : undefined">
+      Submissions table
+    </button>
+    <button mat-flat-button (click)="load('onb')" [color]="view === 'onb' ? 'primary' : undefined">
+      Onboarding status
+    </button>
+  </div>
+
+  @if (view === 'perf') {
+    <p class="hint">All consultants (full roll-up) or choose one consultant for an individual report.</p>
+    <div class="row">
+      <mat-form-field appearance="outline">
+        <mat-label>Consultant</mat-label>
+        <mat-select [(ngModel)]="perfConsultantFilterId" (selectionChange)="load('perf')" name="mperfC">
+          <mat-option [value]="0">All consultants (combined)</mat-option>
+          @for (c of consultants; track c.id) {
+            <mat-option [value]="c.id">{{ c.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    </div>
+  }
+  @if (view === 'sales') {
+    <p class="hint">All sales recruiters (full roll-up) or choose one for an individual report.</p>
+    <div class="row">
+      <mat-form-field appearance="outline">
+        <mat-label>Sales recruiter</mat-label>
+        <mat-select [(ngModel)]="perfSalesFilterId" (selectionChange)="load('sales')" name="mperfS">
+          <mat-option [value]="0">All sales (combined)</mat-option>
+          @for (s of salesRecruiters; track s.id) {
+            <mat-option [value]="s.id">{{ s.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    </div>
+  }
 
   <div class="row csv-row">
     @if (view === 'perf') {
@@ -24,12 +167,12 @@
   </div>
 
   @if (view === 'perf') {
-    <div class="chart-wrap">
+    <div class="chart-wrap tall">
       <canvas baseChart [type]="'bar'" [data]="perfChart" [options]="barOptions"></canvas>
     </div>
   }
   @if (view === 'sales') {
-    <div class="chart-wrap">
+    <div class="chart-wrap tall">
       <canvas baseChart [type]="'bar'" [data]="salesChart" [options]="barOptions"></canvas>
     </div>
   }
@@ -61,6 +204,10 @@
       <ng-container matColumnDef="status">
         <th mat-header-cell *matHeaderCellDef>Status</th>
         <td mat-cell *matCellDef="let r">{{ r['status'] }}</td>
+      </ng-container>
+      <ng-container matColumnDef="notes">
+        <th mat-header-cell *matHeaderCellDef>Notes</th>
+        <td mat-cell *matCellDef="let r" class="subs-notes-cell">{{ subsNoteCell(r['notes']) }}</td>
       </ng-container>
       <tr mat-header-row *matHeaderRowDef="subsCols"></tr>
       <tr mat-row *matRowDef="let row; columns: subsCols"></tr>

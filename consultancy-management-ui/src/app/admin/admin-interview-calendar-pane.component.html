@@ -1,0 +1,29 @@
+<section class="pane" aria-label="Interview calendar">
+  <div class="pane-head">
+    <h3 class="pane-title">Interview calendar</h3>
+    <button type="button" class="pane-refresh" (click)="reload()" title="Refresh">↻</button>
+  </div>
+  <mat-calendar
+    [selected]="selectedDate"
+    (selectedChange)="onSelectedChange($event)"
+    [dateClass]="dateClass">
+  </mat-calendar>
+  <div class="pane-detail">
+    <p class="pane-date">{{ selectedDate | date : 'fullDate' }}</p>
+    @for (ev of eventsForDay; track ev.id) {
+      <article class="event">
+        <div class="event-time">{{ timeRange(ev) }}</div>
+        <div class="event-title">{{ ev.jobTitle }}</div>
+        <div class="event-meta">{{ ev.consultantName }}</div>
+        <div class="event-meta subtle">{{ ev.interviewCode }} · {{ ev.salesRecruiterName }}</div>
+        @if (ev.interviewMode) {
+          <div class="event-meta subtle">{{ ev.interviewMode }} · {{ ev.status }}</div>
+        } @else {
+          <div class="event-meta subtle">{{ ev.status }}</div>
+        }
+      </article>
+    } @empty {
+      <p class="empty">No interviews on this day.</p>
+    }
+  </div>
+</section>

@@ -9,6 +9,12 @@ public class DailySummaryReportDto
     public int TotalSubmissions { get; set; }
     public int TotalInterviewCalls { get; set; }
     public int ActiveConsultants { get; set; }
+    /// <summary>When set, metrics are limited to this consultant.</summary>
+    public int? ScopeConsultantId { get; set; }
+    public string? ScopeConsultantName { get; set; }
+    /// <summary>When set, activity totals are for consultants assigned to this recruiter; submissions/interviews attributed to this recruiter.</summary>
+    public int? ScopeSalesRecruiterId { get; set; }
+    public string? ScopeSalesRecruiterName { get; set; }
 }
 
 public class WeeklySummaryReportDto
@@ -20,6 +26,10 @@ public class WeeklySummaryReportDto
     public int TotalVendorResponses { get; set; }
     public int TotalSubmissions { get; set; }
     public int TotalInterviews { get; set; }
+    public int? ScopeConsultantId { get; set; }
+    public string? ScopeConsultantName { get; set; }
+    public int? ScopeSalesRecruiterId { get; set; }
+    public string? ScopeSalesRecruiterName { get; set; }
 }
 
 public class ConsultantPerformanceDto
@@ -50,6 +60,7 @@ public class SubmissionReportRowDto
     public string JobTitle { get; set; } = string.Empty;
     public DateTime SubmissionDate { get; set; }
     public string Status { get; set; } = string.Empty;
+    public string? Notes { get; set; }
 }
 
 public class InterviewReportRowDto
@@ -58,8 +69,11 @@ public class InterviewReportRowDto
     public string ConsultantName { get; set; } = string.Empty;
     public string JobTitle { get; set; } = string.Empty;
     public DateTime InterviewDate { get; set; }
+    public DateTime? InterviewEndDate { get; set; }
     public string Mode { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
+    public string? Feedback { get; set; }
+    public string? Notes { get; set; }
 }
 
 public class OnboardingStatusReportDto

@@ -1,4 +1,5 @@
-import { Component, DOCUMENT, inject } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
+import { Component, inject } from '@angular/core';
 import { Meta, Title } from '@angular/platform-browser';
 import { RouterOutlet } from '@angular/router';
 import { environment } from '../environments/environment';
@@ -12,7 +13,7 @@ import { environment } from '../environments/environment';
 export class AppComponent {
   private readonly title = inject(Title);
   private readonly meta = inject(Meta);
-  private readonly doc = inject(DOCUMENT);
+  private readonly doc = inject<Document>(DOCUMENT);
 
   constructor() {
     this.applyClientBranding();
@@ -20,24 +21,24 @@ export class AppComponent {
 
   private applyClientBranding(): void {
     const client = environment.clientDisplayName;
-    /** Tab, bookmarks, and search snippets emphasize the tenant, not the product codename */
-    const pageTitle = client;
+    /** Browser tab (compact); defaults to full client name if unset */
+    const pageTitle = environment.clientTabTitle ?? client;
 
     this.title.setTitle(pageTitle);
 
     const description = `${client} — official portal for consultant onboarding, documents, submissions, interviews, and reporting.`;
 
     this.meta.updateTag({ name: 'description', content: description });
-    this.meta.updateTag({ name: 'application-name', content: pageTitle });
+    this.meta.updateTag({ name: 'application-name', content: client });
     this.meta.updateTag({ name: 'apple-mobile-web-app-title', content: pageTitle });
 
-    this.meta.updateTag({ property: 'og:title', content: pageTitle });
+    this.meta.updateTag({ property: 'og:title', content: client });
     this.meta.updateTag({ property: 'og:site_name', content: client });
     this.meta.updateTag({ property: 'og:description', content: description });
     this.meta.updateTag({ property: 'og:type', content: 'website' });
 
     this.meta.updateTag({ name: 'twitter:card', content: 'summary' });
-    this.meta.updateTag({ name: 'twitter:title', content: pageTitle });
+    this.meta.updateTag({ name: 'twitter:title', content: client });
     this.meta.updateTag({ name: 'twitter:description', content: description });
 
     const origin =
@@ -80,7 +81,7 @@ export class AppComponent {
       logo: logoUrl
     };
     if (origin) {
-      payload.url = origin;
+      payload['url'] = origin;
     }
 
     const script = this.doc.createElement('script');

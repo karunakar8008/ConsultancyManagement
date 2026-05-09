@@ -14,8 +14,17 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        var databaseUrl = configuration["DATABASE_URL"];
+        var resolvedConnectionString = !string.IsNullOrWhiteSpace(databaseUrl)
+            ? databaseUrl
+            : configuration.GetConnectionString("DefaultConnection");
+        if (string.IsNullOrWhiteSpace(resolvedConnectionString))
+        {
+            throw new InvalidOperationException("Database connection is not configured. Use DATABASE_URL or ConnectionStrings:DefaultConnection.");
+        }
+
         services.AddDbContext<ApplicationDbContext>(options =>
-            options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
+            options.UseNpgsql(resolvedConnectionString));
         services.Configure<SmtpSettings>(configuration.GetSection("Smtp"));
 
         services.AddIdentity<ApplicationUser, IdentityRole>(options =>
@@ -39,6 +48,7 @@ public static class DependencyInjection
         services.AddScoped<IManagementPortalService, ManagementPortalService>();
         services.AddScoped<IReportsService, ReportsService>();
         services.AddScoped<IDirectoryService, DirectoryService>();
+        services.AddScoped<INotificationService, NotificationService>();
 
         return services;
     }

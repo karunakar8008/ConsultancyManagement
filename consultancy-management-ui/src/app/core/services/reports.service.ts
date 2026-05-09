@@ -8,33 +8,49 @@ export class ReportsService {
   private readonly http = inject(HttpClient);
   private readonly base = `${environment.apiBaseUrl}/reports`;
 
-  dailySummary(date: string) {
-    const p = new HttpParams().set('date', date);
+  dailySummary(date: string, consultantId?: number | null, salesRecruiterId?: number | null) {
+    let p = new HttpParams().set('date', date);
+    if (consultantId != null && consultantId > 0) p = p.set('consultantId', String(consultantId));
+    if (salesRecruiterId != null && salesRecruiterId > 0) p = p.set('salesRecruiterId', String(salesRecruiterId));
     return this.http.get(`${this.base}/daily-summary`, { params: p });
   }
-  dailySummaryCsv(date: string): Observable<Blob> {
-    const p = new HttpParams().set('date', date);
+  dailySummaryCsv(date: string, consultantId?: number | null, salesRecruiterId?: number | null): Observable<Blob> {
+    let p = new HttpParams().set('date', date);
+    if (consultantId != null && consultantId > 0) p = p.set('consultantId', String(consultantId));
+    if (salesRecruiterId != null && salesRecruiterId > 0) p = p.set('salesRecruiterId', String(salesRecruiterId));
     return this.http.get(`${this.base}/daily-summary/csv`, { params: p, responseType: 'blob' });
   }
-  weeklySummary(start: string, end: string) {
+  weeklySummary(start: string, end: string, consultantId?: number | null, salesRecruiterId?: number | null) {
     let p = new HttpParams().set('startDate', start).set('endDate', end);
+    if (consultantId != null && consultantId > 0) p = p.set('consultantId', String(consultantId));
+    if (salesRecruiterId != null && salesRecruiterId > 0) p = p.set('salesRecruiterId', String(salesRecruiterId));
     return this.http.get(`${this.base}/weekly-summary`, { params: p });
   }
-  weeklySummaryCsv(start: string, end: string): Observable<Blob> {
-    const p = new HttpParams().set('startDate', start).set('endDate', end);
+  weeklySummaryCsv(start: string, end: string, consultantId?: number | null, salesRecruiterId?: number | null): Observable<Blob> {
+    let p = new HttpParams().set('startDate', start).set('endDate', end);
+    if (consultantId != null && consultantId > 0) p = p.set('consultantId', String(consultantId));
+    if (salesRecruiterId != null && salesRecruiterId > 0) p = p.set('salesRecruiterId', String(salesRecruiterId));
     return this.http.get(`${this.base}/weekly-summary/csv`, { params: p, responseType: 'blob' });
   }
-  consultantPerformance() {
-    return this.http.get(`${this.base}/consultant-performance`);
+  consultantPerformance(consultantId?: number | null) {
+    let p = new HttpParams();
+    if (consultantId != null && consultantId > 0) p = p.set('consultantId', String(consultantId));
+    return this.http.get(`${this.base}/consultant-performance`, { params: p });
   }
-  consultantPerformanceCsv(): Observable<Blob> {
-    return this.http.get(`${this.base}/consultant-performance/csv`, { responseType: 'blob' });
+  consultantPerformanceCsv(consultantId?: number | null): Observable<Blob> {
+    let p = new HttpParams();
+    if (consultantId != null && consultantId > 0) p = p.set('consultantId', String(consultantId));
+    return this.http.get(`${this.base}/consultant-performance/csv`, { params: p, responseType: 'blob' });
   }
-  salesPerformance() {
-    return this.http.get(`${this.base}/sales-performance`);
+  salesPerformance(salesRecruiterId?: number | null) {
+    let p = new HttpParams();
+    if (salesRecruiterId != null && salesRecruiterId > 0) p = p.set('salesRecruiterId', String(salesRecruiterId));
+    return this.http.get(`${this.base}/sales-performance`, { params: p });
   }
-  salesPerformanceCsv(): Observable<Blob> {
-    return this.http.get(`${this.base}/sales-performance/csv`, { responseType: 'blob' });
+  salesPerformanceCsv(salesRecruiterId?: number | null): Observable<Blob> {
+    let p = new HttpParams();
+    if (salesRecruiterId != null && salesRecruiterId > 0) p = p.set('salesRecruiterId', String(salesRecruiterId));
+    return this.http.get(`${this.base}/sales-performance/csv`, { params: p, responseType: 'blob' });
   }
   submissions() {
     return this.http.get(`${this.base}/submissions`);

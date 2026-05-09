@@ -6,15 +6,27 @@ import { MatTableModule } from '@angular/material/table';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatDialog } from '@angular/material/dialog';
 import { distinctUntilChanged, Subscription } from 'rxjs';
 import { ConsultantApiService } from '../../core/services/consultant-api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastrService } from 'ngx-toastr';
+import { ConsultantTextDialogComponent } from '../shared/consultant-text-dialog.component';
 
 @Component({
   selector: 'app-consultant-daily',
   standalone: true,
-  imports: [DatePipe, ReactiveFormsModule, MatCardModule, MatTableModule, MatFormFieldModule, MatInputModule, MatButtonModule],
+  imports: [
+    DatePipe,
+    ReactiveFormsModule,
+    MatCardModule,
+    MatTableModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatButtonModule,
+    MatIconModule
+  ],
   templateUrl: './consultant-daily.component.html',
   styleUrl: './consultant-shared.scss'
 })
@@ -23,11 +35,12 @@ export class ConsultantDailyComponent implements OnInit, OnDestroy {
   private readonly toast = inject(ToastrService);
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
+  private readonly dialog = inject(MatDialog);
   private sub?: Subscription;
 
-  cols = ['date', 'jobs', 'reach', 'resp', 'subs', 'ints'];
+  cols = ['date', 'jobs', 'reach', 'resp', 'subs', 'ints', 'notes', 'actions'];
   rows: Record<string, unknown>[] = [];
-  /** When true, jobs / reach / submissions / interview counts are driven from system data (read-only). */
+  /** When true, numeric counts are derived (read-only); only date and notes are editable on save. */
   consultantDerivedLock = false;
 
   form = this.fb.nonNullable.group({
@@ -58,7 +71,13 @@ export class ConsultantDailyComponent implements OnInit, OnDestroy {
   }
 
   private setDerivedControlsDisabled(disabled: boolean): void {
-    const keys = ['jobsAppliedCount', 'vendorReachedOutCount', 'submissionsCount', 'interviewCallsCount'] as const;
+    const keys = [
+      'jobsAppliedCount',
+      'vendorReachedOutCount',
+      'vendorResponseCount',
+      'submissionsCount',
+      'interviewCallsCount'
+    ] as const;
     for (const k of keys) {
       const c = this.form.get(k);
       if (!c) continue;
@@ -75,6 +94,7 @@ export class ConsultantDailyComponent implements OnInit, OnDestroy {
           {
             jobsAppliedCount: s.jobsAppliedCount,
             vendorReachedOutCount: s.vendorReachedOutCount,
+            vendorResponseCount: s.vendorResponseCount,
             submissionsCount: s.submissionsCount,
             interviewCallsCount: s.interviewCallsCount
           },
@@ -107,5 +127,35 @@ export class ConsultantDailyComponent implements OnInit, OnDestroy {
         },
         error: (e: { error?: { message?: string } }) => this.toast.error(e?.error?.message ?? 'Error')
       });
+  }
+
+  textOrDash(value: unknown): string {
+    const t = String(value ?? '').trim();
+    return t ? t : '—';
+  }
+
+  openNotesEditor(row: Record<string, unknown>): void {
+    const id = Number(row['id']);
+    if (!Number.isFinite(id)) return;
+    const dialogRef = this.dialog.open(ConsultantTextDialogComponent, {
+      width: 'min(480px, 94vw)',
+      data: {
+        title: 'Daily activity notes',
+        label: 'Notes',
+        value: String(row['notes'] ?? ''),
+        rows: 5
+      }
+    });
+    dialogRef.afterClosed().subscribe((result: string | undefined) => {
+      if (result === undefined) return;
+      const notes = result.trim() ? result.trim() : null;
+      this.api.patchDailyNotes(id, { notes }).subscribe({
+        next: () => {
+          this.toast.success('Notes saved');
+          this.reload();
+        },
+        error: (e: { error?: { message?: string } }) => this.toast.error(e?.error?.message ?? 'Could not save notes')
+      });
+    });
   }
 }

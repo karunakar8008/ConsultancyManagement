@@ -35,4 +35,6 @@ public interface IAdminService
     Task<(bool Success, string? Error, int? Id)> CreateSalesManagementAssignmentAsync(CreateSalesManagementAssignmentRequestDto dto);
     Task<IReadOnlyList<SalesManagementAssignmentListDto>> GetSalesManagementAssignmentsAsync();
     Task<(bool Success, string? Error)> UpdateSalesManagementAssignmentAsync(int id, UpdateAssignmentRequestDto dto);
+
+    Task<IReadOnlyList<InterviewCalendarEventDto>> GetInterviewCalendarAsync(DateTime fromUtc, DateTime toUtc);
 }

@@ -37,6 +37,10 @@ import { ToastrService } from 'ngx-toastr';
           <th mat-header-cell *matHeaderCellDef>Status</th>
           <td mat-cell *matCellDef="let r">{{ r['status'] }}</td>
         </ng-container>
+        <ng-container matColumnDef="notes">
+          <th mat-header-cell *matHeaderCellDef>Notes</th>
+          <td mat-cell *matCellDef="let r" class="text-cell">{{ noteCell(r['notes']) }}</td>
+        </ng-container>
         <tr mat-header-row *matHeaderRowDef="cols"></tr>
         <tr mat-row *matRowDef="let row; columns: cols"></tr>
       </table>
@@ -50,13 +54,20 @@ import { ToastrService } from 'ngx-toastr';
       .full-table {
         width: 100%;
       }
+      .text-cell {
+        max-width: 14rem;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-size: 0.875rem;
+        vertical-align: top;
+      }
     `
   ]
 })
 export class ManagementSubmissionsComponent implements OnInit {
   private readonly api = inject(ManagementService);
   private readonly toast = inject(ToastrService);
-  cols = ['consultant', 'sales', 'vendor', 'job', 'date', 'status'];
+  cols = ['consultant', 'sales', 'vendor', 'job', 'date', 'status', 'notes'];
   rows: Record<string, unknown>[] = [];
 
   ngOnInit(): void {
@@ -64,5 +75,10 @@ export class ManagementSubmissionsComponent implements OnInit {
       next: (r) => (this.rows = r as Record<string, unknown>[]),
       error: () => this.toast.error('Failed to load submissions')
     });
+  }
+
+  noteCell(value: unknown): string {
+    const t = typeof value === 'string' ? value.trim() : '';
+    return t ? t : '—';
   }
 }

@@ -11,6 +11,16 @@
 .wide {
   grid-column: span 2;
 }
+
+@media (max-width: 599px) {
+  .wide {
+    grid-column: span 1;
+  }
+
+  .grid-form {
+    grid-template-columns: 1fr;
+  }
+}
 .full-table {
   width: 100%;
 }
@@ -24,4 +34,23 @@
   display: inline-flex;
   gap: 0.15rem;
   align-items: center;
+}
+
+/* Hide number spinners (increment/decrement) for daily activity counts */
+input.no-spin::-webkit-outer-spin-button,
+input.no-spin::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input.no-spin[type='number'] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.text-cell {
+  max-width: 16rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.875rem;
+  vertical-align: top;
 }

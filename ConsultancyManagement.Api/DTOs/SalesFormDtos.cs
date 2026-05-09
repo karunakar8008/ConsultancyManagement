@@ -11,6 +11,8 @@ public class SalesVendorFormDto
     public string? CompanyName { get; set; }
     public string? LinkedInUrl { get; set; }
     public string? Notes { get; set; }
+    /// <summary>Required with <see cref="ContactProof"/> — file is stored under that consultant's folder.</summary>
+    public int? ConsultantId { get; set; }
     public IFormFile? ContactProof { get; set; }
 }
 
@@ -31,6 +33,7 @@ public class SalesInterviewFormDto
 {
     public int SubmissionId { get; set; }
     public DateTime InterviewDate { get; set; }
+    public DateTime? InterviewEndDate { get; set; }
     public string? InterviewMode { get; set; }
     public string? Round { get; set; }
     public string Status { get; set; } = "Scheduled";

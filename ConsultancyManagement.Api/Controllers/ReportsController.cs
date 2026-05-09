@@ -18,17 +18,39 @@ public class ReportsController : ControllerBase
     public ReportsController(IReportsService reports) => _reports = reports;
 
     [HttpGet("daily-summary")]
-    public async Task<IActionResult> DailySummary([FromQuery] DateTime date) =>
-        Ok(await _reports.GetDailySummaryAsync(date));
+    public async Task<IActionResult> DailySummary(
+        [FromQuery] DateTime date,
+        [FromQuery] int? consultantId,
+        [FromQuery] int? salesRecruiterId)
+    {
+        if (consultantId is > 0 && salesRecruiterId is > 0)
+            return BadRequest(new { message = "Specify only one of consultantId or salesRecruiterId." });
+        var cId = consultantId is > 0 ? consultantId : null;
+        var sId = salesRecruiterId is > 0 ? salesRecruiterId : null;
+        var r = await _reports.GetDailySummaryAsync(date, cId, sId);
+        if (r is null) return NotFound(new { message = "Consultant or sales recruiter not found." });
+        return Ok(r);
+    }
 
     [HttpGet("daily-summary/csv")]
-    public async Task<IActionResult> DailySummaryCsv([FromQuery] DateTime date)
+    public async Task<IActionResult> DailySummaryCsv(
+        [FromQuery] DateTime date,
+        [FromQuery] int? consultantId,
+        [FromQuery] int? salesRecruiterId)
     {
-        var r = await _reports.GetDailySummaryAsync(date);
-        if (r is null) return NotFound();
+        if (consultantId is > 0 && salesRecruiterId is > 0)
+            return BadRequest(new { message = "Specify only one of consultantId or salesRecruiterId." });
+        var cId = consultantId is > 0 ? consultantId : null;
+        var sId = salesRecruiterId is > 0 ? salesRecruiterId : null;
+        var r = await _reports.GetDailySummaryAsync(date, cId, sId);
+        if (r is null) return NotFound(new { message = "Consultant or sales recruiter not found." });
         var sb = new StringBuilder();
         sb.AppendLine("Metric,Value");
         sb.AppendLine($"Date,{Csv(r.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture))}");
+        if (r.ScopeConsultantId.HasValue)
+            sb.AppendLine($"ScopeConsultant,{Csv(r.ScopeConsultantName ?? "")} ({r.ScopeConsultantId})");
+        if (r.ScopeSalesRecruiterId.HasValue)
+            sb.AppendLine($"ScopeSalesRecruiter,{Csv(r.ScopeSalesRecruiterName ?? "")} ({r.ScopeSalesRecruiterId})");
         sb.AppendLine($"TotalJobsApplied,{r.TotalJobsApplied.ToString(CultureInfo.InvariantCulture)}");
         sb.AppendLine($"TotalVendorReachOuts,{r.TotalVendorReachOuts.ToString(CultureInfo.InvariantCulture)}");
         sb.AppendLine($"TotalVendorResponses,{r.TotalVendorResponses.ToString(CultureInfo.InvariantCulture)}");
@@ -38,24 +60,50 @@ public class ReportsController : ControllerBase
         sb.AppendLine();
         sb.AppendLine("Context");
         sb.AppendLine(
-            Csv("Daily summary aggregates daily activity rows, submission rows dated this day, and interviews dated this day."));
+            Csv("Daily summary aggregates daily activity rows, submission rows dated this day, and interviews dated this day. Optional consultantId or salesRecruiterId scopes metrics."));
+        var suffix = r.ScopeConsultantId is { } cid ? $"-consultant-{cid}" :
+            r.ScopeSalesRecruiterId is { } sid ? $"-sales-{sid}" : "";
         return File(Encoding.UTF8.GetBytes(sb.ToString()), "text/csv",
-            $"daily-summary-{r.Date:yyyy-MM-dd}.csv");
+            $"daily-summary-{r.Date:yyyy-MM-dd}{suffix}.csv");
     }
 
     [HttpGet("weekly-summary")]
-    public async Task<IActionResult> WeeklySummary([FromQuery] DateTime startDate, [FromQuery] DateTime endDate) =>
-        Ok(await _reports.GetWeeklySummaryAsync(startDate, endDate));
+    public async Task<IActionResult> WeeklySummary(
+        [FromQuery] DateTime startDate,
+        [FromQuery] DateTime endDate,
+        [FromQuery] int? consultantId,
+        [FromQuery] int? salesRecruiterId)
+    {
+        if (consultantId is > 0 && salesRecruiterId is > 0)
+            return BadRequest(new { message = "Specify only one of consultantId or salesRecruiterId." });
+        var cId = consultantId is > 0 ? consultantId : null;
+        var sId = salesRecruiterId is > 0 ? salesRecruiterId : null;
+        var r = await _reports.GetWeeklySummaryAsync(startDate, endDate, cId, sId);
+        if (r is null) return NotFound(new { message = "Consultant or sales recruiter not found." });
+        return Ok(r);
+    }
 
     [HttpGet("weekly-summary/csv")]
-    public async Task<IActionResult> WeeklySummaryCsv([FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
+    public async Task<IActionResult> WeeklySummaryCsv(
+        [FromQuery] DateTime startDate,
+        [FromQuery] DateTime endDate,
+        [FromQuery] int? consultantId,
+        [FromQuery] int? salesRecruiterId)
     {
-        var r = await _reports.GetWeeklySummaryAsync(startDate, endDate);
-        if (r is null) return NotFound();
+        if (consultantId is > 0 && salesRecruiterId is > 0)
+            return BadRequest(new { message = "Specify only one of consultantId or salesRecruiterId." });
+        var cId = consultantId is > 0 ? consultantId : null;
+        var sId = salesRecruiterId is > 0 ? salesRecruiterId : null;
+        var r = await _reports.GetWeeklySummaryAsync(startDate, endDate, cId, sId);
+        if (r is null) return NotFound(new { message = "Consultant or sales recruiter not found." });
         var sb = new StringBuilder();
         sb.AppendLine("Metric,Value");
         sb.AppendLine($"StartDate,{Csv(r.StartDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture))}");
         sb.AppendLine($"EndDate,{Csv(r.EndDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture))}");
+        if (r.ScopeConsultantId.HasValue)
+            sb.AppendLine($"ScopeConsultant,{Csv(r.ScopeConsultantName ?? "")} ({r.ScopeConsultantId})");
+        if (r.ScopeSalesRecruiterId.HasValue)
+            sb.AppendLine($"ScopeSalesRecruiter,{Csv(r.ScopeSalesRecruiterName ?? "")} ({r.ScopeSalesRecruiterId})");
         sb.AppendLine($"TotalJobsApplied,{r.TotalJobsApplied.ToString(CultureInfo.InvariantCulture)}");
         sb.AppendLine($"TotalVendorReachOuts,{r.TotalVendorReachOuts.ToString(CultureInfo.InvariantCulture)}");
         sb.AppendLine($"TotalVendorResponses,{r.TotalVendorResponses.ToString(CultureInfo.InvariantCulture)}");
@@ -63,19 +111,21 @@ public class ReportsController : ControllerBase
         sb.AppendLine($"TotalInterviews,{r.TotalInterviews.ToString(CultureInfo.InvariantCulture)}");
         sb.AppendLine();
         sb.AppendLine("Context");
-        sb.AppendLine(Csv("Weekly summary sums daily activities and counts submissions and interviews in the inclusive date range."));
+        sb.AppendLine(Csv("Weekly summary sums daily activities and counts submissions and interviews in the inclusive date range. Optional consultantId or salesRecruiterId scopes metrics."));
+        var suffix = r.ScopeConsultantId is { } cid ? $"-consultant-{cid}" :
+            r.ScopeSalesRecruiterId is { } sid ? $"-sales-{sid}" : "";
         return File(Encoding.UTF8.GetBytes(sb.ToString()), "text/csv",
-            $"weekly-summary-{r.StartDate:yyyy-MM-dd}-to-{r.EndDate:yyyy-MM-dd}.csv");
+            $"weekly-summary-{r.StartDate:yyyy-MM-dd}-to-{r.EndDate:yyyy-MM-dd}{suffix}.csv");
     }
 
     [HttpGet("consultant-performance")]
-    public async Task<IActionResult> ConsultantPerformance() =>
-        Ok(await _reports.GetConsultantPerformanceAsync());
+    public async Task<IActionResult> ConsultantPerformance([FromQuery] int? consultantId) =>
+        Ok(await _reports.GetConsultantPerformanceAsync(consultantId is > 0 ? consultantId : null));
 
     [HttpGet("consultant-performance/csv")]
-    public async Task<IActionResult> ConsultantPerformanceCsv()
+    public async Task<IActionResult> ConsultantPerformanceCsv([FromQuery] int? consultantId)
     {
-        var rows = await _reports.GetConsultantPerformanceAsync();
+        var rows = await _reports.GetConsultantPerformanceAsync(consultantId is > 0 ? consultantId : null);
         var sb = new StringBuilder();
         sb.AppendLine("ConsultantId,Name,JobsApplied,Submissions,Interviews");
         foreach (var x in rows)
@@ -90,18 +140,19 @@ public class ReportsController : ControllerBase
 
         sb.AppendLine();
         sb.AppendLine("Context");
-        sb.AppendLine(Csv("Jobs applied = sum of daily activity job counts plus job application rows. Interviews counted via submission linkage."));
-        return File(Encoding.UTF8.GetBytes(sb.ToString()), "text/csv", "consultant-performance.csv");
+        sb.AppendLine(Csv("Jobs applied = sum of daily activity job counts plus job application rows. Interviews counted via submission linkage. Optional consultantId filters to one consultant."));
+        var name = consultantId is > 0 ? $"consultant-performance-{consultantId}.csv" : "consultant-performance.csv";
+        return File(Encoding.UTF8.GetBytes(sb.ToString()), "text/csv", name);
     }
 
     [HttpGet("sales-performance")]
-    public async Task<IActionResult> SalesPerformance() =>
-        Ok(await _reports.GetSalesPerformanceAsync());
+    public async Task<IActionResult> SalesPerformance([FromQuery] int? salesRecruiterId) =>
+        Ok(await _reports.GetSalesPerformanceAsync(salesRecruiterId is > 0 ? salesRecruiterId : null));
 
     [HttpGet("sales-performance/csv")]
-    public async Task<IActionResult> SalesPerformanceCsv()
+    public async Task<IActionResult> SalesPerformanceCsv([FromQuery] int? salesRecruiterId)
     {
-        var rows = await _reports.GetSalesPerformanceAsync();
+        var rows = await _reports.GetSalesPerformanceAsync(salesRecruiterId is > 0 ? salesRecruiterId : null);
         var sb = new StringBuilder();
         sb.AppendLine("SalesRecruiterId,Name,Submissions,Interviews,AssignedConsultants");
         foreach (var x in rows)
@@ -116,8 +167,9 @@ public class ReportsController : ControllerBase
 
         sb.AppendLine();
         sb.AppendLine("Context");
-        sb.AppendLine(Csv("Sales performance is derived from submissions and interviews linked to each recruiter, plus active consultant assignments."));
-        return File(Encoding.UTF8.GetBytes(sb.ToString()), "text/csv", "sales-performance.csv");
+        sb.AppendLine(Csv("Sales performance is derived from submissions and interviews linked to each recruiter, plus active consultant assignments. Optional salesRecruiterId filters to one recruiter."));
+        var name = salesRecruiterId is > 0 ? $"sales-performance-{salesRecruiterId}.csv" : "sales-performance.csv";
+        return File(Encoding.UTF8.GetBytes(sb.ToString()), "text/csv", name);
     }
 
     [HttpGet("submissions")]
@@ -129,7 +181,7 @@ public class ReportsController : ControllerBase
     {
         var rows = await _reports.GetSubmissionsReportAsync();
         var sb = new StringBuilder();
-        sb.AppendLine("Id,ConsultantName,SalesRecruiterName,VendorName,JobTitle,SubmissionDate,Status");
+        sb.AppendLine("Id,ConsultantName,SalesRecruiterName,VendorName,JobTitle,SubmissionDate,Status,Notes");
         foreach (SubmissionReportRowDto x in rows)
         {
             sb.AppendLine(string.Join(',',
@@ -139,7 +191,8 @@ public class ReportsController : ControllerBase
                 Csv(x.VendorName),
                 Csv(x.JobTitle),
                 Csv(x.SubmissionDate.ToString("o", CultureInfo.InvariantCulture)),
-                Csv(x.Status)));
+                Csv(x.Status),
+                Csv(x.Notes)));
         }
 
         sb.AppendLine();
@@ -157,7 +210,7 @@ public class ReportsController : ControllerBase
     {
         var rows = await _reports.GetInterviewsReportAsync();
         var sb = new StringBuilder();
-        sb.AppendLine("Id,ConsultantName,JobTitle,InterviewDate,Mode,Status");
+        sb.AppendLine("Id,ConsultantName,JobTitle,InterviewDate,Mode,Status,Feedback,Notes");
         foreach (InterviewReportRowDto x in rows)
         {
             sb.AppendLine(string.Join(',',
@@ -166,7 +219,9 @@ public class ReportsController : ControllerBase
                 Csv(x.JobTitle),
                 Csv(x.InterviewDate.ToString("o", CultureInfo.InvariantCulture)),
                 Csv(x.Mode),
-                Csv(x.Status)));
+                Csv(x.Status),
+                Csv(x.Feedback),
+                Csv(x.Notes)));
         }
 
         sb.AppendLine();

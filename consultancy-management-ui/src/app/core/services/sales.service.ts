@@ -56,9 +56,12 @@ export interface InterviewRow {
   consultantName: string;
   jobTitle: string;
   interviewDate: string;
+  interviewEndDate?: string | null;
   interviewMode?: string | null;
   round?: string | null;
   status: string;
+  feedback?: string | null;
+  notes?: string | null;
   hasInviteProof?: boolean;
 }
 
@@ -86,6 +89,7 @@ export interface SubmissionFormValues {
 export interface InterviewFormValues {
   submissionId: number;
   interviewDate: string;
+  interviewEndDate: string;
   interviewMode: string;
   round: string;
   status: string;
@@ -193,6 +197,9 @@ export class SalesService {
     const fd = new FormData();
     fd.append('submissionId', String(v.submissionId));
     fd.append('interviewDate', new Date(v.interviewDate).toISOString());
+    if (v.interviewEndDate?.trim()) {
+      fd.append('interviewEndDate', new Date(v.interviewEndDate).toISOString());
+    }
     fd.append('interviewMode', v.interviewMode ?? '');
     fd.append('round', v.round ?? '');
     fd.append('status', v.status);

@@ -19,12 +19,18 @@ public class ConsultantPortalService : IConsultantPortalService
     private readonly ApplicationDbContext _db;
     private readonly IHostEnvironment _env;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly INotificationService _notifications;
 
-    public ConsultantPortalService(ApplicationDbContext db, IHostEnvironment env, UserManager<ApplicationUser> userManager)
+    public ConsultantPortalService(
+        ApplicationDbContext db,
+        IHostEnvironment env,
+        UserManager<ApplicationUser> userManager,
+        INotificationService notifications)
     {
         _db = db;
         _env = env;
         _userManager = userManager;
+        _notifications = notifications;
     }
 
     private async Task<int?> ResolveConsultantIdAsync(string? userId, bool isAdminOrManagement, int? consultantId)
@@ -46,10 +52,6 @@ public class ConsultantPortalService : IConsultantPortalService
         var today = DateTime.UtcNow.Date;
         var tomorrow = today.AddDays(1);
 
-        var todayActivity = await _db.DailyActivities.AsNoTracking()
-            .Where(d => d.ConsultantId == cid && d.ActivityDate >= today && d.ActivityDate < tomorrow)
-            .FirstOrDefaultAsync();
-
         var jobsToday = await _db.JobApplications.CountAsync(j =>
             j.ConsultantId == cid && j.AppliedDate >= today && j.AppliedDate < tomorrow);
         var reachToday = await _db.ConsultantVendorReachOuts.CountAsync(r =>
@@ -58,12 +60,15 @@ public class ConsultantPortalService : IConsultantPortalService
             s.ConsultantId == cid && s.SubmissionDate >= today && s.SubmissionDate < tomorrow);
         var intToday = await _db.Interviews.CountAsync(i =>
             i.Submission.ConsultantId == cid && i.InterviewDate >= today && i.InterviewDate < tomorrow);
+        var respToday = await _db.ConsultantVendorReachOuts.CountAsync(r =>
+            r.ConsultantId == cid && r.ReachedDate >= today && r.ReachedDate < tomorrow &&
+            r.VendorResponseNotes != null && r.VendorResponseNotes != "");
 
         return new ConsultantDashboardDto
         {
             JobsAppliedToday = jobsToday,
             VendorsReachedOut = reachToday,
-            VendorResponses = todayActivity?.VendorResponseCount ?? 0,
+            VendorResponses = respToday,
             Submissions = subsToday,
             InterviewCalls = intToday
         };
@@ -145,15 +150,16 @@ public class ConsultantPortalService : IConsultantPortalService
         if (await _db.DailyActivities.AnyAsync(d => d.ConsultantId == cid && d.ActivityDate.Date == date))
             return (false, "Daily activity already exists for this date.");
 
-        int jobs, reach, subs, ints;
+        int jobs, reach, resp, subs, ints;
         if (!isAdminOrManagement)
         {
-            (jobs, reach, subs, ints) = await GetDerivedDailyCountsAsync(cid.Value, date);
+            (jobs, reach, resp, subs, ints) = await GetDerivedDailyCountsAsync(cid.Value, date);
         }
         else
         {
             jobs = dto.JobsAppliedCount;
             reach = dto.VendorReachedOutCount;
+            resp = dto.VendorResponseCount;
             subs = dto.SubmissionsCount;
             ints = dto.InterviewCallsCount;
         }
@@ -164,7 +170,7 @@ public class ConsultantPortalService : IConsultantPortalService
             ActivityDate = date,
             JobsAppliedCount = jobs,
             VendorReachedOutCount = reach,
-            VendorResponseCount = dto.VendorResponseCount,
+            VendorResponseCount = resp,
             SubmissionsCount = subs,
             InterviewCallsCount = ints,
             Notes = dto.Notes,
@@ -214,9 +220,10 @@ public class ConsultantPortalService : IConsultantPortalService
         d.ActivityDate = newDate;
         if (!isAdminOrManagement)
         {
-            var (jobs, reach, subs, ints) = await GetDerivedDailyCountsAsync(cid.Value, newDate);
+            var (jobs, reach, resp, subs, ints) = await GetDerivedDailyCountsAsync(cid.Value, newDate);
             d.JobsAppliedCount = jobs;
             d.VendorReachedOutCount = reach;
+            d.VendorResponseCount = resp;
             d.SubmissionsCount = subs;
             d.InterviewCallsCount = ints;
         }
@@ -224,11 +231,11 @@ public class ConsultantPortalService : IConsultantPortalService
         {
             d.JobsAppliedCount = dto.JobsAppliedCount;
             d.VendorReachedOutCount = dto.VendorReachedOutCount;
+            d.VendorResponseCount = dto.VendorResponseCount;
             d.SubmissionsCount = dto.SubmissionsCount;
             d.InterviewCallsCount = dto.InterviewCallsCount;
         }
 
-        d.VendorResponseCount = dto.VendorResponseCount;
         d.Notes = dto.Notes;
         d.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
@@ -242,17 +249,18 @@ public class ConsultantPortalService : IConsultantPortalService
         var cid = await ResolveConsultantIdAsync(userId, isAdminOrManagement, consultantId);
         if (!cid.HasValue) return null;
         var date = activityDate.Date;
-        var (jobs, reach, subs, ints) = await GetDerivedDailyCountsAsync(cid.Value, date);
+        var (jobs, reach, resp, subs, ints) = await GetDerivedDailyCountsAsync(cid.Value, date);
         return new DailyActivitySuggestionsDto
         {
             JobsAppliedCount = jobs,
             VendorReachedOutCount = reach,
+            VendorResponseCount = resp,
             SubmissionsCount = subs,
             InterviewCallsCount = ints
         };
     }
 
-    private async Task<(int Jobs, int Reach, int Subs, int Ints)> GetDerivedDailyCountsAsync(int consultantId, DateTime date)
+    private async Task<(int Jobs, int Reach, int VendorResponses, int Subs, int Ints)> GetDerivedDailyCountsAsync(int consultantId, DateTime date)
     {
         var day = date.Date;
         var next = day.AddDays(1);
@@ -260,11 +268,14 @@ public class ConsultantPortalService : IConsultantPortalService
             j.ConsultantId == consultantId && j.AppliedDate >= day && j.AppliedDate < next);
         var reach = await _db.ConsultantVendorReachOuts.CountAsync(r =>
             r.ConsultantId == consultantId && r.ReachedDate >= day && r.ReachedDate < next);
+        var resp = await _db.ConsultantVendorReachOuts.CountAsync(r =>
+            r.ConsultantId == consultantId && r.ReachedDate >= day && r.ReachedDate < next &&
+            r.VendorResponseNotes != null && r.VendorResponseNotes != "");
         var subs = await _db.Submissions.CountAsync(s =>
             s.ConsultantId == consultantId && s.SubmissionDate >= day && s.SubmissionDate < next);
         var ints = await _db.Interviews.CountAsync(i =>
             i.Submission.ConsultantId == consultantId && i.InterviewDate >= day && i.InterviewDate < next);
-        return (jobs, reach, subs, ints);
+        return (jobs, reach, resp, subs, ints);
     }
 
     public async Task<IReadOnlyList<ConsultantVendorReachOutDto>> GetVendorReachOutsAsync(
@@ -282,6 +293,9 @@ public class ConsultantPortalService : IConsultantPortalService
                 Id = r.Id,
                 ReachedDate = r.ReachedDate,
                 VendorName = r.VendorName,
+                ContactPerson = r.ContactPerson,
+                ContactEmail = r.ContactEmail,
+                VendorResponseNotes = r.VendorResponseNotes,
                 Notes = r.Notes
             }).ToListAsync();
     }
@@ -299,10 +313,14 @@ public class ConsultantPortalService : IConsultantPortalService
             ConsultantId = cid.Value,
             ReachedDate = dto.ReachedDate.Date,
             VendorName = dto.VendorName.Trim(),
+            ContactPerson = string.IsNullOrWhiteSpace(dto.ContactPerson) ? null : dto.ContactPerson.Trim(),
+            ContactEmail = string.IsNullOrWhiteSpace(dto.ContactEmail) ? null : dto.ContactEmail.Trim(),
+            VendorResponseNotes = string.IsNullOrWhiteSpace(dto.VendorResponseNotes) ? null : dto.VendorResponseNotes.Trim(),
             Notes = dto.Notes,
             CreatedAt = DateTime.UtcNow
         });
         await _db.SaveChangesAsync();
+        await RefreshDailyActivityDerivedCountsForDateAsync(cid.Value, dto.ReachedDate.Date);
         return (true, null);
     }
 
@@ -323,8 +341,12 @@ public class ConsultantPortalService : IConsultantPortalService
                 SubmissionCode = i.Submission.SubmissionCode,
                 JobTitle = i.Submission.JobTitle,
                 InterviewDate = i.InterviewDate,
+                InterviewEndDate = i.InterviewEndDate,
                 InterviewMode = i.InterviewMode,
+                Round = i.Round,
                 Status = i.Status,
+                Feedback = i.Feedback,
+                Notes = i.Notes,
                 HasInviteProof = i.InviteProofFilePath != null && i.InviteProofFilePath != ""
             }).ToListAsync();
     }
@@ -421,6 +443,7 @@ public class ConsultantPortalService : IConsultantPortalService
                 SubmissionDate = s.SubmissionDate,
                 Status = s.Status,
                 Notes = s.Notes,
+                ConsultantCommunication = s.ConsultantCommunication,
                 HasProof = s.ProofFilePath != null && s.ProofFilePath != ""
             }).ToListAsync();
     }
@@ -432,19 +455,37 @@ public class ConsultantPortalService : IConsultantPortalService
         var cid = await ResolveConsultantIdAsync(userId, isAdminOrManagement, consultantId);
         if (!cid.HasValue) return Array.Empty<DocumentDto>();
 
-        return await _db.Documents.AsNoTracking()
+        var rows = await _db.Documents.AsNoTracking()
             .Where(d => d.ConsultantId == cid.Value)
             .OrderByDescending(d => d.UploadedAt)
-            .Select(d => new DocumentDto
+            .Select(d => new
             {
-                Id = d.Id,
-                ConsultantId = d.ConsultantId,
-                ConsultantName = d.Consultant.FirstName + " " + d.Consultant.LastName,
-                DocumentType = d.DocumentType,
-                FileName = d.FileName,
-                UploadedAt = d.UploadedAt,
-                Status = d.Status
-            }).ToListAsync();
+                d.Id,
+                d.ConsultantId,
+                Fn = d.Consultant.FirstName,
+                Ln = d.Consultant.LastName,
+                d.DocumentType,
+                d.FileName,
+                d.UploadedAt,
+                d.Status,
+                d.AdminReviewLockedAt,
+                d.LastReviewAuthority
+            })
+            .ToListAsync();
+
+        return rows.Select(d => new DocumentDto
+        {
+            Id = d.Id,
+            ConsultantId = d.ConsultantId,
+            ConsultantName = $"{d.Fn} {d.Ln}".Trim(),
+            StorageFolder = ConsultantFolderNameHelper.BuildSegment(d.Fn, d.Ln, d.ConsultantId),
+            DocumentType = d.DocumentType,
+            FileName = d.FileName,
+            UploadedAt = d.UploadedAt,
+            Status = d.Status,
+            LockedAfterAdminDecision = d.AdminReviewLockedAt.HasValue,
+            LastReviewAuthority = d.LastReviewAuthority
+        }).ToList();
     }
 
     public async Task<(bool Success, string? Error, DocumentDto? Doc)> UploadDocumentAsync(
@@ -463,13 +504,18 @@ public class ConsultantPortalService : IConsultantPortalService
         var cid = await ResolveConsultantIdAsync(userId, isAdminOrManagement, consultantId);
         if (!cid.HasValue) return (false, "Consultant not found.", null);
 
+        var consultant = await _db.Consultants.AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == cid.Value);
+        if (consultant is null) return (false, "Consultant not found.", null);
+
         var ext = Path.GetExtension(originalFileName).ToLowerInvariant();
         if (string.IsNullOrEmpty(ext) || !AllowedExtensions.Contains(ext))
             return (false, "File type not allowed. Use PDF, Word, images, or TXT.", null);
 
         var safeName = Path.GetFileName(originalFileName);
         var unique = $"{DateTime.UtcNow:yyyyMMddHHmmss}_{safeName}";
-        var relativeDir = Path.Combine("uploads", cid.Value.ToString());
+        var dirSegment = ConsultantFolderNameHelper.BuildSegment(consultant.FirstName, consultant.LastName, consultant.Id);
+        var relativeDir = Path.Combine("uploads", dirSegment, "documents");
         var wwwroot = Path.Combine(_env.ContentRootPath, "wwwroot");
         var dir = Path.Combine(wwwroot, relativeDir);
         Directory.CreateDirectory(dir);
@@ -493,6 +539,11 @@ public class ConsultantPortalService : IConsultantPortalService
         _db.Documents.Add(doc);
         await _db.SaveChangesAsync();
 
+        if (isAdminOrManagement)
+            await _notifications.NotifyManagementUploadedDocumentAsync(doc.ConsultantId, doc.Id, doc.DocumentType, doc.FileName);
+        else
+            await _notifications.NotifyConsultantUploadedDocumentPendingReviewAsync(doc.ConsultantId, doc.Id, doc.DocumentType, doc.FileName);
+
         var dto = new DocumentDto
         {
             Id = doc.Id,
@@ -501,10 +552,13 @@ public class ConsultantPortalService : IConsultantPortalService
                 .Where(c => c.Id == doc.ConsultantId)
                 .Select(c => c.FirstName + " " + c.LastName)
                 .FirstAsync(),
+            StorageFolder = ConsultantFolderNameHelper.BuildSegment(consultant.FirstName, consultant.LastName, consultant.Id),
             DocumentType = doc.DocumentType,
             FileName = doc.FileName,
             UploadedAt = doc.UploadedAt,
-            Status = doc.Status
+            Status = doc.Status,
+            LockedAfterAdminDecision = false,
+            LastReviewAuthority = null
         };
 
         return (true, null, dto);
@@ -568,5 +622,97 @@ public class ConsultantPortalService : IConsultantPortalService
         var (ok, err, path, name) = WwwrootFileResolver.TryResolve(_env.ContentRootPath, rel, preferredName);
         if (!ok) return (false, err, null, string.Empty);
         return (true, null, path, name);
+    }
+
+    public async Task<(bool Success, string? Error)> PatchDailyActivityNotesAsync(
+        ClaimsPrincipal user, int activityId, PatchDailyActivityNotesDto dto)
+    {
+        if (UserContextHelper.IsInAnyRole(user, UserRole.Admin.ToString(), UserRole.Management.ToString()))
+            return (false, "Use the full daily activity update for admin or management users.");
+        var userId = UserContextHelper.GetUserId(user);
+        var cid = await ResolveConsultantIdAsync(userId, false, null);
+        if (!cid.HasValue) return (false, "Consultant not found.");
+        var d = await _db.DailyActivities.FirstOrDefaultAsync(x => x.Id == activityId && x.ConsultantId == cid);
+        if (d is null) return (false, "Activity not found.");
+        d.Notes = dto.Notes;
+        d.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+        return (true, null);
+    }
+
+    public async Task<(bool Success, string? Error)> UpdateVendorReachOutAsync(
+        ClaimsPrincipal user, bool isAdminOrManagement, int? consultantId, int reachOutId, UpdateConsultantVendorReachOutDto dto)
+    {
+        var userId = UserContextHelper.GetUserId(user);
+        var cid = await ResolveConsultantIdAsync(userId, isAdminOrManagement, consultantId);
+        if (!cid.HasValue) return (false, "Consultant not found.");
+        var r = await _db.ConsultantVendorReachOuts.FirstOrDefaultAsync(x => x.Id == reachOutId && x.ConsultantId == cid);
+        if (r is null) return (false, "Reach-out not found.");
+        if (string.IsNullOrWhiteSpace(dto.VendorName)) return (false, "Vendor name is required.");
+        var oldDate = r.ReachedDate.Date;
+        r.ReachedDate = dto.ReachedDate.Date;
+        r.VendorName = dto.VendorName.Trim();
+        r.ContactPerson = string.IsNullOrWhiteSpace(dto.ContactPerson) ? null : dto.ContactPerson.Trim();
+        r.ContactEmail = string.IsNullOrWhiteSpace(dto.ContactEmail) ? null : dto.ContactEmail.Trim();
+        r.VendorResponseNotes = string.IsNullOrWhiteSpace(dto.VendorResponseNotes) ? null : dto.VendorResponseNotes.Trim();
+        r.Notes = dto.Notes;
+        await _db.SaveChangesAsync();
+        await RefreshDailyActivityDerivedCountsForDateAsync(cid.Value, oldDate);
+        if (oldDate != r.ReachedDate.Date)
+            await RefreshDailyActivityDerivedCountsForDateAsync(cid.Value, r.ReachedDate.Date);
+        return (true, null);
+    }
+
+    public async Task<(bool Success, string? Error)> UpdateSubmissionConsultantCommunicationAsync(
+        ClaimsPrincipal user, int submissionId, UpdateConsultantSubmissionCommunicationDto dto)
+    {
+        var userId = UserContextHelper.GetUserId(user);
+        var cid = await ResolveConsultantIdAsync(userId, false, null);
+        if (!cid.HasValue) return (false, "Consultant not found.");
+        var s = await _db.Submissions.FirstOrDefaultAsync(x => x.Id == submissionId && x.ConsultantId == cid);
+        if (s is null) return (false, "Submission not found.");
+        s.ConsultantCommunication = dto.ConsultantCommunication;
+        s.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+        return (true, null);
+    }
+
+    public async Task<(bool Success, string? Error)> UpdateConsultantInterviewAsync(
+        ClaimsPrincipal user, int interviewId, UpdateConsultantInterviewDto dto)
+    {
+        var userId = UserContextHelper.GetUserId(user);
+        var cid = await ResolveConsultantIdAsync(userId, false, null);
+        if (!cid.HasValue) return (false, "Consultant not found.");
+        var i = await _db.Interviews.Include(x => x.Submission).FirstOrDefaultAsync(x => x.Id == interviewId);
+        if (i is null) return (false, "Interview not found.");
+        if (i.Submission.ConsultantId != cid.Value) return (false, "Forbidden.");
+        if (dto.InterviewEndDate.HasValue && dto.InterviewEndDate.Value < dto.InterviewDate)
+            return (false, "Interview end time must be on or after the start time.");
+        i.InterviewDate = dto.InterviewDate;
+        i.InterviewEndDate = dto.InterviewEndDate;
+        i.InterviewMode = dto.InterviewMode;
+        i.Round = dto.Round;
+        i.Status = dto.Status;
+        i.Feedback = dto.Feedback;
+        i.Notes = dto.Notes;
+        i.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+        return (true, null);
+    }
+
+    private async Task RefreshDailyActivityDerivedCountsForDateAsync(int consultantId, DateTime activityDate)
+    {
+        var day = activityDate.Date;
+        var d = await _db.DailyActivities.FirstOrDefaultAsync(x =>
+            x.ConsultantId == consultantId && x.ActivityDate.Date == day);
+        if (d is null) return;
+        var (jobs, reach, resp, subs, ints) = await GetDerivedDailyCountsAsync(consultantId, day);
+        d.JobsAppliedCount = jobs;
+        d.VendorReachedOutCount = reach;
+        d.VendorResponseCount = resp;
+        d.SubmissionsCount = subs;
+        d.InterviewCallsCount = ints;
+        d.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
     }
 }

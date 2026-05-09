@@ -125,6 +125,13 @@ public class SalesPortalService : ISalesPortalService
         while (await _db.Vendors.AnyAsync(v => v.VendorCode == code))
             code = NewVendorCode();
 
+        if (dto.LinkedConsultantId.HasValue &&
+            !await _db.Consultants.AnyAsync(c => c.Id == dto.LinkedConsultantId.Value))
+            return (false, "Consultant not found.", null);
+        if (!isElevated && salesId.HasValue && dto.LinkedConsultantId.HasValue
+            && !await IsAssignedAsync(salesId.Value, dto.LinkedConsultantId.Value))
+            return (false, "Select a consultant assigned to you for contact proof storage.", null);
+
         var v = new Vendor
         {
             VendorCode = code,
@@ -136,6 +143,7 @@ public class SalesPortalService : ISalesPortalService
             CompanyName = dto.CompanyName,
             LinkedInUrl = dto.LinkedInUrl,
             Notes = dto.Notes,
+            LinkedConsultantId = dto.LinkedConsultantId,
             ContactProofFilePath = string.IsNullOrWhiteSpace(contactProofRelativePath) ? null : contactProofRelativePath,
             CreatedAt = DateTime.UtcNow
         };
@@ -195,6 +203,15 @@ public class SalesPortalService : ISalesPortalService
         v.CompanyName = dto.CompanyName;
         v.LinkedInUrl = dto.LinkedInUrl;
         v.Notes = dto.Notes;
+        if (dto.LinkedConsultantId.HasValue)
+        {
+            if (!await _db.Consultants.AnyAsync(c => c.Id == dto.LinkedConsultantId.Value))
+                return (false, "Consultant not found.");
+            if (!isElevated && salesId.HasValue
+                && !await IsAssignedAsync(salesId.Value, dto.LinkedConsultantId.Value))
+                return (false, "Select a consultant assigned to you for contact proof storage.");
+            v.LinkedConsultantId = dto.LinkedConsultantId;
+        }
         if (!string.IsNullOrWhiteSpace(contactProofRelativePath))
             v.ContactProofFilePath = contactProofRelativePath;
         v.UpdatedAt = DateTime.UtcNow;
@@ -363,11 +380,15 @@ public class SalesPortalService : ISalesPortalService
         while (await _db.Interviews.AnyAsync(i => i.InterviewCode == code))
             code = NewInterviewCode();
 
+        if (dto.InterviewEndDate.HasValue && dto.InterviewEndDate.Value < dto.InterviewDate)
+            return (false, "Interview end time must be on or after the start time.", null);
+
         var interview = new Interview
         {
             InterviewCode = code,
             SubmissionId = dto.SubmissionId,
             InterviewDate = dto.InterviewDate,
+            InterviewEndDate = dto.InterviewEndDate,
             InterviewMode = dto.InterviewMode,
             Round = dto.Round,
             Status = dto.Status,
@@ -399,6 +420,7 @@ public class SalesPortalService : ISalesPortalService
                 ConsultantName = i.Submission.Consultant.FirstName + " " + i.Submission.Consultant.LastName,
                 JobTitle = i.Submission.JobTitle,
                 InterviewDate = i.InterviewDate,
+                InterviewEndDate = i.InterviewEndDate,
                 InterviewMode = i.InterviewMode,
                 Round = i.Round,
                 Status = i.Status,
@@ -421,8 +443,12 @@ public class SalesPortalService : ISalesPortalService
         if (sub is null) return (false, "Submission not found.");
         if (!isElevated && sub.SalesRecruiterId != salesId) return (false, "Forbidden.");
 
+        if (dto.InterviewEndDate.HasValue && dto.InterviewEndDate.Value < dto.InterviewDate)
+            return (false, "Interview end time must be on or after the start time.");
+
         i.SubmissionId = dto.SubmissionId;
         i.InterviewDate = dto.InterviewDate;
+        i.InterviewEndDate = dto.InterviewEndDate;
         i.InterviewMode = dto.InterviewMode;
         i.Round = dto.Round;
         i.Status = dto.Status;

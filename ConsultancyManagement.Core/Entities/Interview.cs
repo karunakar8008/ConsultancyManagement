@@ -6,6 +6,8 @@ public class Interview
     public string InterviewCode { get; set; } = string.Empty;
     public int SubmissionId { get; set; }
     public DateTime InterviewDate { get; set; }
+    /// <summary>Optional scheduled end (same timezone as <see cref="InterviewDate"/>). When null, UI treats the slot as open-ended.</summary>
+    public DateTime? InterviewEndDate { get; set; }
     public string? InterviewMode { get; set; }
     public string? Round { get; set; }
     public string Status { get; set; } = "Scheduled";

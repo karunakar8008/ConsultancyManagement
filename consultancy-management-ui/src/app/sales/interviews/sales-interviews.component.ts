@@ -37,7 +37,22 @@ export class SalesInterviewsComponent implements OnInit {
   private readonly toast = inject(ToastrService);
   private readonly fb = inject(FormBuilder);
 
-  cols = ['code', 'submission', 'consultant', 'job', 'date', 'mode', 'round', 'status', 'proof', 'actions'];
+  cols = [
+    'code',
+    'submission',
+    'consultant',
+    'job',
+    'from',
+    'to',
+    'duration',
+    'mode',
+    'round',
+    'status',
+    'feedback',
+    'notes',
+    'proof',
+    'actions'
+  ];
   rows: InterviewRow[] = [];
   submissionChoices: SubmissionOption[] = [];
   editingId: number | null = null;
@@ -46,6 +61,7 @@ export class SalesInterviewsComponent implements OnInit {
   form = this.fb.nonNullable.group({
     submissionId: [0, [Validators.required, Validators.min(1)]],
     interviewDate: [this.defaultLocalDatetime(), Validators.required],
+    interviewEndDate: [''],
     interviewMode: ['Virtual'],
     round: ['1'],
     status: ['Scheduled'],
@@ -91,6 +107,7 @@ export class SalesInterviewsComponent implements OnInit {
     this.form.reset({
       submissionId: 0,
       interviewDate: this.defaultLocalDatetime(),
+      interviewEndDate: '',
       interviewMode: 'Virtual',
       round: '1',
       status: 'Scheduled',
@@ -104,14 +121,21 @@ export class SalesInterviewsComponent implements OnInit {
     this.inviteFile = null;
     const d = row.interviewDate ? new Date(row.interviewDate) : new Date();
     d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    let endLocal = '';
+    if (row.interviewEndDate) {
+      const e = new Date(row.interviewEndDate);
+      e.setMinutes(e.getMinutes() - e.getTimezoneOffset());
+      endLocal = e.toISOString().slice(0, 16);
+    }
     this.form.patchValue({
       submissionId: row.submissionId,
       interviewDate: d.toISOString().slice(0, 16),
+      interviewEndDate: endLocal,
       interviewMode: row.interviewMode ?? 'Virtual',
       round: row.round ?? '1',
       status: row.status,
-      feedback: '',
-      notes: ''
+      feedback: row.feedback ?? '',
+      notes: row.notes ?? ''
     });
   }
 
@@ -129,6 +153,24 @@ export class SalesInterviewsComponent implements OnInit {
     });
   }
 
+  /** Show placeholder only when empty so entered feedback/notes stay readable in the grid. */
+  textOrDash(value: string | null | undefined): string {
+    const t = value?.trim();
+    return t ? t : '—';
+  }
+
+  durationLabel(r: InterviewRow): string {
+    if (!r.interviewEndDate) return '—';
+    const a = new Date(r.interviewDate).getTime();
+    const b = new Date(r.interviewEndDate).getTime();
+    if (!(b > a)) return '—';
+    const mins = Math.round((b - a) / 60000);
+    if (mins < 60) return `${mins} min`;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m ? `${h}h ${m}m` : `${h}h`;
+  }
+
   save(): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -139,9 +181,16 @@ export class SalesInterviewsComponent implements OnInit {
       return;
     }
     const v = this.form.getRawValue();
+    const startMs = new Date(v.interviewDate).getTime();
+    const endMs = v.interviewEndDate?.trim() ? new Date(v.interviewEndDate).getTime() : NaN;
+    if (!Number.isNaN(endMs) && endMs < startMs) {
+      this.toast.error('End time must be after the start time.');
+      return;
+    }
     const payload = {
       submissionId: v.submissionId,
       interviewDate: v.interviewDate,
+      interviewEndDate: v.interviewEndDate?.trim() ?? '',
       interviewMode: v.interviewMode.trim(),
       round: v.round.trim(),
       status: v.status.trim(),

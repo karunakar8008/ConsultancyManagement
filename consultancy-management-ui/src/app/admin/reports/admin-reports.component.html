@@ -2,14 +2,52 @@
 
 <mat-card class="panel">
   <h3>Daily activity summary</h3>
+  <p class="hint">
+    Choose <strong>Organization (combined)</strong>, one <strong>consultant</strong>, or one <strong>sales recruiter</strong> for this daily report only.
+    Use <strong>View / refresh</strong> and <strong>Download CSV</strong> with the same scope.
+  </p>
   <div class="row">
     <mat-form-field appearance="outline">
+      <mat-label>Scope</mat-label>
+      <mat-select
+        [(ngModel)]="dailySummaryScope"
+        (ngModelChange)="onDailySummaryScopeChange()"
+        name="dailySummaryScope"
+      >
+        <mat-option value="all">Organization (combined)</mat-option>
+        <mat-option value="consultant">Consultant</mat-option>
+        <mat-option value="sales">Sales recruiter</mat-option>
+      </mat-select>
+    </mat-form-field>
+    @if (dailySummaryScope === 'consultant') {
+      <mat-form-field appearance="outline">
+        <mat-label>Consultant</mat-label>
+        <mat-select [(ngModel)]="dailySummaryConsultantId" name="dailySumC">
+          <mat-option [value]="null">Select…</mat-option>
+          @for (c of consultants; track c.id) {
+            <mat-option [value]="c.id">{{ c.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    }
+    @if (dailySummaryScope === 'sales') {
+      <mat-form-field appearance="outline">
+        <mat-label>Sales recruiter</mat-label>
+        <mat-select [(ngModel)]="dailySummarySalesId" name="dailySumS">
+          <mat-option [value]="null">Select…</mat-option>
+          @for (s of salesRecruiters; track s.id) {
+            <mat-option [value]="s.id">{{ s.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    }
+    <mat-form-field appearance="outline">
       <mat-label>Date</mat-label>
-      <input matInput [matDatepicker]="dayPicker" [(ngModel)]="dayDate" />
+      <input matInput [matDatepicker]="dayPicker" [(ngModel)]="dayDate" name="dayDate" />
       <mat-datepicker-toggle matSuffix [for]="dayPicker"></mat-datepicker-toggle>
       <mat-datepicker #dayPicker></mat-datepicker>
     </mat-form-field>
-    <button mat-stroked-button type="button" (click)="loadDaily()">Refresh</button>
+    <button mat-stroked-button type="button" (click)="loadDaily()">View / refresh</button>
     <button mat-stroked-button type="button" (click)="downloadDailyCsv()">Download CSV</button>
   </div>
   <div class="chart-wrap">
@@ -19,20 +57,57 @@
 
 <mat-card class="panel">
   <h3>Weekly summary</h3>
+  <p class="hint">
+    Choose scope <strong>separately</strong> for the weekly report (independent of the daily report above).
+  </p>
   <div class="row">
     <mat-form-field appearance="outline">
+      <mat-label>Scope</mat-label>
+      <mat-select
+        [(ngModel)]="weeklySummaryScope"
+        (ngModelChange)="onWeeklySummaryScopeChange()"
+        name="weeklySummaryScope"
+      >
+        <mat-option value="all">Organization (combined)</mat-option>
+        <mat-option value="consultant">Consultant</mat-option>
+        <mat-option value="sales">Sales recruiter</mat-option>
+      </mat-select>
+    </mat-form-field>
+    @if (weeklySummaryScope === 'consultant') {
+      <mat-form-field appearance="outline">
+        <mat-label>Consultant</mat-label>
+        <mat-select [(ngModel)]="weeklySummaryConsultantId" name="weeklySumC">
+          <mat-option [value]="null">Select…</mat-option>
+          @for (c of consultants; track c.id) {
+            <mat-option [value]="c.id">{{ c.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    }
+    @if (weeklySummaryScope === 'sales') {
+      <mat-form-field appearance="outline">
+        <mat-label>Sales recruiter</mat-label>
+        <mat-select [(ngModel)]="weeklySummarySalesId" name="weeklySumS">
+          <mat-option [value]="null">Select…</mat-option>
+          @for (s of salesRecruiters; track s.id) {
+            <mat-option [value]="s.id">{{ s.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    }
+    <mat-form-field appearance="outline">
       <mat-label>Start</mat-label>
-      <input matInput [matDatepicker]="wStartPicker" [(ngModel)]="wStartDate" />
+      <input matInput [matDatepicker]="wStartPicker" [(ngModel)]="wStartDate" name="wStart" />
       <mat-datepicker-toggle matSuffix [for]="wStartPicker"></mat-datepicker-toggle>
       <mat-datepicker #wStartPicker></mat-datepicker>
     </mat-form-field>
     <mat-form-field appearance="outline">
       <mat-label>End</mat-label>
-      <input matInput [matDatepicker]="wEndPicker" [(ngModel)]="wEndDate" />
+      <input matInput [matDatepicker]="wEndPicker" [(ngModel)]="wEndDate" name="wEnd" />
       <mat-datepicker-toggle matSuffix [for]="wEndPicker"></mat-datepicker-toggle>
       <mat-datepicker #wEndPicker></mat-datepicker>
     </mat-form-field>
-    <button mat-stroked-button type="button" (click)="loadWeekly()">Load week</button>
+    <button mat-stroked-button type="button" (click)="loadWeekly()">View / refresh</button>
     <button mat-stroked-button type="button" (click)="downloadWeeklyCsv()">Download CSV</button>
   </div>
   <div class="chart-wrap">
@@ -42,7 +117,18 @@
 
 <mat-card class="panel">
   <h3>Consultant performance</h3>
+  <p class="hint">Use <strong>All consultants</strong> for the full roll-up, or one consultant for an individual report.</p>
   <div class="row">
+    <mat-form-field appearance="outline">
+      <mat-label>Consultant</mat-label>
+      <mat-select [(ngModel)]="perfConsultantFilterId" (selectionChange)="loadPerf()" name="perfC">
+        <mat-option [value]="0">All consultants (combined)</mat-option>
+        @for (c of consultants; track c.id) {
+          <mat-option [value]="c.id">{{ c.name }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <button mat-stroked-button type="button" (click)="loadPerf()">Refresh</button>
     <button mat-stroked-button type="button" (click)="downloadPerfCsv()">Download CSV</button>
   </div>
   <div class="chart-wrap tall">
@@ -52,17 +138,21 @@
 
 <mat-card class="panel">
   <h3>Sales performance</h3>
+  <p class="hint">Use <strong>All sales recruiters</strong> for the full roll-up, or one recruiter for an individual report.</p>
   <div class="row">
+    <mat-form-field appearance="outline">
+      <mat-label>Sales recruiter</mat-label>
+      <mat-select [(ngModel)]="perfSalesFilterId" (selectionChange)="loadSales()" name="perfS">
+        <mat-option [value]="0">All sales (combined)</mat-option>
+        @for (s of salesRecruiters; track s.id) {
+          <mat-option [value]="s.id">{{ s.name }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <button mat-stroked-button type="button" (click)="loadSales()">Refresh</button>
     <button mat-stroked-button type="button" (click)="downloadSalesCsv()">Download CSV</button>
   </div>
   <div class="chart-wrap tall">
-    <canvas baseChart [type]="'bar'" [data]="salesChart" [options]="perfChartOptions"></canvas>
+    <canvas baseChart [type]="'bar'" [data]="salesChart" [options]="salesChartOptions"></canvas>
   </div>
 </mat-card>
-
-<mat-expansion-panel>
-  <mat-expansion-panel-header>
-    <mat-panel-title>Raw daily summary JSON</mat-panel-title>
-  </mat-expansion-panel-header>
-  <pre class="json">{{ payload | json }}</pre>
-</mat-expansion-panel>

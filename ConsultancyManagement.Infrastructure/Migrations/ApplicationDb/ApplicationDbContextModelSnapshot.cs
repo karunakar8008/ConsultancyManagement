@@ -260,6 +260,12 @@ namespace ConsultancyManagement.Infrastructure.Migrations.ApplicationDb
                     b.Property<int>("ConsultantId")
                         .HasColumnType("integer");
 
+                    b.Property<string>("ContactEmail")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ContactPerson")
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -271,6 +277,9 @@ namespace ConsultancyManagement.Infrastructure.Migrations.ApplicationDb
 
                     b.Property<string>("VendorName")
                         .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("VendorResponseNotes")
                         .HasColumnType("text");
 
                     b.HasKey("Id");
@@ -334,6 +343,9 @@ namespace ConsultancyManagement.Infrastructure.Migrations.ApplicationDb
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<DateTime?>("AdminReviewLockedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int>("ConsultantId")
                         .HasColumnType("integer");
 
@@ -347,6 +359,9 @@ namespace ConsultancyManagement.Infrastructure.Migrations.ApplicationDb
 
                     b.Property<string>("FilePath")
                         .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("LastReviewAuthority")
                         .HasColumnType("text");
 
                     b.Property<DateTime?>("ReviewedAt")
@@ -388,6 +403,9 @@ namespace ConsultancyManagement.Infrastructure.Migrations.ApplicationDb
                         .HasColumnType("text");
 
                     b.Property<DateTime>("InterviewDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("InterviewEndDate")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("InterviewMode")
@@ -649,6 +667,9 @@ namespace ConsultancyManagement.Infrastructure.Migrations.ApplicationDb
                     b.Property<string>("ClientName")
                         .HasColumnType("text");
 
+                    b.Property<string>("ConsultantCommunication")
+                        .HasColumnType("text");
+
                     b.Property<int>("ConsultantId")
                         .HasColumnType("integer");
 
@@ -699,6 +720,51 @@ namespace ConsultancyManagement.Infrastructure.Migrations.ApplicationDb
                     b.ToTable("Submissions");
                 });
 
+            modelBuilder.Entity("ConsultancyManagement.Core.Entities.UserNotification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("ReadAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RecipientUserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int?>("RelatedDocumentId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("RelatedOnboardingTaskId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RecipientUserId");
+
+                    b.HasIndex("RecipientUserId", "ReadAt");
+
+                    b.ToTable("UserNotifications");
+                });
+
             modelBuilder.Entity("ConsultancyManagement.Core.Entities.Vendor", b =>
                 {
                     b.Property<int>("Id")
@@ -722,6 +788,9 @@ namespace ConsultancyManagement.Infrastructure.Migrations.ApplicationDb
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<int?>("LinkedConsultantId")
+                        .HasColumnType("integer");
 
                     b.Property<string>("LinkedInUrl")
                         .HasColumnType("text");
@@ -748,6 +817,8 @@ namespace ConsultancyManagement.Infrastructure.Migrations.ApplicationDb
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("LinkedConsultantId");
 
                     b.HasIndex("SalesRecruiterId");
 
@@ -1055,10 +1126,17 @@ namespace ConsultancyManagement.Infrastructure.Migrations.ApplicationDb
 
             modelBuilder.Entity("ConsultancyManagement.Core.Entities.Vendor", b =>
                 {
+                    b.HasOne("ConsultancyManagement.Core.Entities.Consultant", "LinkedConsultant")
+                        .WithMany()
+                        .HasForeignKey("LinkedConsultantId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("ConsultancyManagement.Core.Entities.SalesRecruiter", "SalesRecruiter")
                         .WithMany("Vendors")
                         .HasForeignKey("SalesRecruiterId")
                         .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("LinkedConsultant");
 
                     b.Navigation("SalesRecruiter");
                 });

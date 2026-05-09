@@ -1,0 +1,59 @@
+<h2 class="page-title">Vendors reached</h2>
+<p class="hint">
+  Log each vendor you contacted. These entries feed the <strong>Vendors reached</strong> count on your daily activity for that date.
+  When you save a <strong>vendor response</strong>, the <strong>Vendor responses</strong> count on daily activities updates automatically for that day.
+</p>
+<mat-card class="panel">
+  <form [formGroup]="form" (ngSubmit)="save()" class="grid-form">
+    <mat-form-field appearance="outline"><mat-label>Date</mat-label><input matInput type="date" formControlName="reachedDate" /></mat-form-field>
+    <mat-form-field appearance="outline" class="wide"><mat-label>Vendor name</mat-label><input matInput formControlName="vendorName" /></mat-form-field>
+    <mat-form-field appearance="outline"><mat-label>Vendor contact</mat-label><input matInput formControlName="contactPerson" /></mat-form-field>
+    <mat-form-field appearance="outline"><mat-label>Vendor email</mat-label><input matInput type="email" formControlName="contactEmail" /></mat-form-field>
+    <mat-form-field appearance="outline" class="wide"><mat-label>Vendor response</mat-label><textarea matInput rows="2" formControlName="vendorResponseNotes"></textarea></mat-form-field>
+    <mat-form-field appearance="outline" class="wide"><mat-label>Notes</mat-label><textarea matInput rows="2" formControlName="notes"></textarea></mat-form-field>
+    <span class="form-actions">
+      @if (editingId != null) {
+        <button mat-stroked-button type="button" (click)="cancelEdit()">Cancel</button>
+      }
+      <button mat-flat-button color="primary" type="submit">{{ editingId != null ? 'Update' : 'Add' }}</button>
+    </span>
+  </form>
+</mat-card>
+<mat-card class="panel">
+  <table mat-table [dataSource]="rows" class="full-table">
+    <ng-container matColumnDef="date">
+      <th mat-header-cell *matHeaderCellDef>Date</th>
+      <td mat-cell *matCellDef="let r">{{ r.reachedDate | date }}</td>
+    </ng-container>
+    <ng-container matColumnDef="vendor">
+      <th mat-header-cell *matHeaderCellDef>Vendor</th>
+      <td mat-cell *matCellDef="let r">{{ r.vendorName }}</td>
+    </ng-container>
+    <ng-container matColumnDef="contact">
+      <th mat-header-cell *matHeaderCellDef>Contact</th>
+      <td mat-cell *matCellDef="let r" class="text-cell">{{ textOrDash(r.contactPerson) }}</td>
+    </ng-container>
+    <ng-container matColumnDef="email">
+      <th mat-header-cell *matHeaderCellDef>Email</th>
+      <td mat-cell *matCellDef="let r" class="text-cell">{{ textOrDash(r.contactEmail) }}</td>
+    </ng-container>
+    <ng-container matColumnDef="response">
+      <th mat-header-cell *matHeaderCellDef>Vendor response</th>
+      <td mat-cell *matCellDef="let r" class="text-cell">{{ textOrDash(r.vendorResponseNotes) }}</td>
+    </ng-container>
+    <ng-container matColumnDef="notes">
+      <th mat-header-cell *matHeaderCellDef>Notes</th>
+      <td mat-cell *matCellDef="let r" class="text-cell">{{ textOrDash(r.notes) }}</td>
+    </ng-container>
+    <ng-container matColumnDef="actions">
+      <th mat-header-cell *matHeaderCellDef></th>
+      <td mat-cell *matCellDef="let r">
+        <button mat-icon-button type="button" color="primary" aria-label="Edit reach-out" (click)="startEdit(r)">
+          <mat-icon>edit</mat-icon>
+        </button>
+      </td>
+    </ng-container>
+    <tr mat-header-row *matHeaderRowDef="cols"></tr>
+    <tr mat-row *matRowDef="let row; columns: cols"></tr>
+  </table>
+</mat-card>

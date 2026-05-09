@@ -1,0 +1,46 @@
+<h2 class="page-title">Submissions</h2>
+<p class="hint">
+  Created by your sales team. Add communication notes about follow-ups with the vendor. Download submission proof when your recruiter attached one.
+</p>
+<mat-card class="panel">
+  <table mat-table [dataSource]="rows" class="full-table">
+    <ng-container matColumnDef="code"><th mat-header-cell *matHeaderCellDef>Submission ID</th><td mat-cell *matCellDef="let r">{{ r.submissionCode }}</td></ng-container>
+    <ng-container matColumnDef="job"><th mat-header-cell *matHeaderCellDef>Job</th><td mat-cell *matCellDef="let r">{{ r.jobTitle }}</td></ng-container>
+    <ng-container matColumnDef="client"><th mat-header-cell *matHeaderCellDef>Client</th><td mat-cell *matCellDef="let r">{{ r.clientName }}</td></ng-container>
+    <ng-container matColumnDef="vendor"><th mat-header-cell *matHeaderCellDef>Vendor</th><td mat-cell *matCellDef="let r">{{ r.vendorName }}</td></ng-container>
+    <ng-container matColumnDef="sales"><th mat-header-cell *matHeaderCellDef>Sales</th><td mat-cell *matCellDef="let r">{{ r.salesRecruiterName }}</td></ng-container>
+    <ng-container matColumnDef="date"><th mat-header-cell *matHeaderCellDef>Date</th><td mat-cell *matCellDef="let r">{{ r.submissionDate | date }}</td></ng-container>
+    <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef>Status</th><td mat-cell *matCellDef="let r">{{ r.status }}</td></ng-container>
+    <ng-container matColumnDef="notes">
+      <th mat-header-cell *matHeaderCellDef>Notes</th>
+      <td mat-cell *matCellDef="let r" class="text-cell">{{ textOrDash(r.notes) }}</td>
+    </ng-container>
+    <ng-container matColumnDef="comm">
+      <th mat-header-cell *matHeaderCellDef>Your communication</th>
+      <td mat-cell *matCellDef="let r" class="text-cell">{{ textOrDash(r.consultantCommunication) }}</td>
+    </ng-container>
+    <ng-container matColumnDef="edit">
+      <th mat-header-cell *matHeaderCellDef></th>
+      <td mat-cell *matCellDef="let r">
+        <button mat-icon-button type="button" color="primary" matTooltip="Edit vendor communication" (click)="editCommunication(r)">
+          <mat-icon>forum</mat-icon>
+        </button>
+      </td>
+    </ng-container>
+    <ng-container matColumnDef="proof">
+      <th mat-header-cell *matHeaderCellDef>Proof</th>
+      <td mat-cell *matCellDef="let r">
+        @if (r.hasProof) {
+          <span class="icon-actions">
+            <button mat-icon-button type="button" color="primary" matTooltip="View" (click)="viewProof(r)"><mat-icon>visibility</mat-icon></button>
+            <button mat-icon-button type="button" matTooltip="Download" (click)="downloadProof(r)"><mat-icon>download</mat-icon></button>
+          </span>
+        } @else {
+          —
+        }
+      </td>
+    </ng-container>
+    <tr mat-header-row *matHeaderRowDef="cols"></tr>
+    <tr mat-row *matRowDef="let row; columns: cols"></tr>
+  </table>
+</mat-card>

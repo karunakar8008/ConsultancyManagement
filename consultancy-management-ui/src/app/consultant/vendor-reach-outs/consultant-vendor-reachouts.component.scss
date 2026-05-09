@@ -4,3 +4,11 @@
   font-size: 0.9rem;
   line-height: 1.45;
 }
+
+.form-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  grid-column: 1 / -1;
+}

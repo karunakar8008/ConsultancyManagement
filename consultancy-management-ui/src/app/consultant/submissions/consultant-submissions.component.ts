@@ -5,44 +5,17 @@ import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatDialog } from '@angular/material/dialog';
 import { ConsultantApiService, ConsultantSubmissionRow } from '../../core/services/consultant-api.service';
 import { openBlobInNewTab, triggerBlobDownload } from '../../core/utils/blob-actions';
 import { ToastrService } from 'ngx-toastr';
+import { ConsultantTextDialogComponent } from '../shared/consultant-text-dialog.component';
 
 @Component({
   selector: 'app-consultant-submissions',
   standalone: true,
   imports: [DatePipe, MatCardModule, MatTableModule, MatButtonModule, MatIconModule, MatTooltipModule],
-  template: `
-    <h2 class="page-title">Submissions</h2>
-    <p class="hint">Created by your sales team. Read-only here. Download submission proof when your recruiter attached one.</p>
-    <mat-card class="panel">
-      <table mat-table [dataSource]="rows" class="full-table">
-        <ng-container matColumnDef="code"><th mat-header-cell *matHeaderCellDef>Submission ID</th><td mat-cell *matCellDef="let r">{{ r.submissionCode }}</td></ng-container>
-        <ng-container matColumnDef="job"><th mat-header-cell *matHeaderCellDef>Job</th><td mat-cell *matCellDef="let r">{{ r.jobTitle }}</td></ng-container>
-        <ng-container matColumnDef="client"><th mat-header-cell *matHeaderCellDef>Client</th><td mat-cell *matCellDef="let r">{{ r.clientName }}</td></ng-container>
-        <ng-container matColumnDef="vendor"><th mat-header-cell *matHeaderCellDef>Vendor</th><td mat-cell *matCellDef="let r">{{ r.vendorName }}</td></ng-container>
-        <ng-container matColumnDef="sales"><th mat-header-cell *matHeaderCellDef>Sales</th><td mat-cell *matCellDef="let r">{{ r.salesRecruiterName }}</td></ng-container>
-        <ng-container matColumnDef="date"><th mat-header-cell *matHeaderCellDef>Date</th><td mat-cell *matCellDef="let r">{{ r.submissionDate | date }}</td></ng-container>
-        <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef>Status</th><td mat-cell *matCellDef="let r">{{ r.status }}</td></ng-container>
-        <ng-container matColumnDef="proof">
-          <th mat-header-cell *matHeaderCellDef>Proof</th>
-          <td mat-cell *matCellDef="let r">
-            @if (r.hasProof) {
-              <span class="icon-actions">
-                <button mat-icon-button type="button" color="primary" matTooltip="View" (click)="viewProof(r)"><mat-icon>visibility</mat-icon></button>
-                <button mat-icon-button type="button" matTooltip="Download" (click)="downloadProof(r)"><mat-icon>download</mat-icon></button>
-              </span>
-            } @else {
-              —
-            }
-          </td>
-        </ng-container>
-        <tr mat-header-row *matHeaderRowDef="cols"></tr>
-        <tr mat-row *matRowDef="let row; columns: cols"></tr>
-      </table>
-    </mat-card>
-  `,
+  templateUrl: './consultant-submissions.component.html',
   styles: [
     `
       .panel {
@@ -61,16 +34,29 @@ import { ToastrService } from 'ngx-toastr';
         gap: 0.15rem;
         align-items: center;
       }
+      .text-cell {
+        max-width: 14rem;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-size: 0.875rem;
+        vertical-align: top;
+      }
     `
   ]
 })
 export class ConsultantSubmissionsComponent implements OnInit {
   private readonly api = inject(ConsultantApiService);
   private readonly toast = inject(ToastrService);
-  cols = ['code', 'job', 'client', 'vendor', 'sales', 'date', 'status', 'proof'];
+  private readonly dialog = inject(MatDialog);
+
+  cols = ['code', 'job', 'client', 'vendor', 'sales', 'date', 'status', 'notes', 'comm', 'edit', 'proof'];
   rows: ConsultantSubmissionRow[] = [];
 
   ngOnInit(): void {
+    this.reload();
+  }
+
+  reload(): void {
     this.api.submissions().subscribe({
       next: (r) => (this.rows = r),
       error: () => this.toast.error('Failed to load')
@@ -88,6 +74,34 @@ export class ConsultantSubmissionsComponent implements OnInit {
     this.api.downloadProof('submission', r.id, false).subscribe({
       next: (blob) => triggerBlobDownload(blob, `${r.submissionCode}-proof`),
       error: () => this.toast.error('Download failed')
+    });
+  }
+
+  textOrDash(value: string | null | undefined): string {
+    const t = value?.trim();
+    return t ? t : '—';
+  }
+
+  editCommunication(r: ConsultantSubmissionRow): void {
+    const ref = this.dialog.open(ConsultantTextDialogComponent, {
+      width: 'min(480px, 94vw)',
+      data: {
+        title: 'Communication with vendor',
+        label: 'Notes on follow-up with the submitted vendor',
+        value: r.consultantCommunication ?? '',
+        rows: 6
+      }
+    });
+    ref.afterClosed().subscribe((text: string | undefined) => {
+      if (text === undefined) return;
+      const consultantCommunication = text.trim() ? text.trim() : null;
+      this.api.updateSubmissionCommunication(r.id, { consultantCommunication }).subscribe({
+        next: () => {
+          this.toast.success('Saved');
+          this.reload();
+        },
+        error: (e: { error?: { message?: string } }) => this.toast.error(e?.error?.message ?? 'Could not save')
+      });
     });
   }
 }

@@ -82,6 +82,8 @@ public class CreateVendorRequestDto
     public string? CompanyName { get; set; }
     public string? LinkedInUrl { get; set; }
     public string? Notes { get; set; }
+    /// <summary>Required when uploading contact proof — files are stored under this consultant's folder.</summary>
+    public int? LinkedConsultantId { get; set; }
 }
 
 public class CreateSubmissionRequestDto
@@ -102,6 +104,7 @@ public class CreateInterviewRequestDto
 {
     public int SubmissionId { get; set; }
     public DateTime InterviewDate { get; set; }
+    public DateTime? InterviewEndDate { get; set; }
     public string? InterviewMode { get; set; }
     public string? Round { get; set; }
     public string Status { get; set; } = "Scheduled";
@@ -121,5 +124,39 @@ public class CreateConsultantVendorReachOutDto
 {
     public DateTime ReachedDate { get; set; }
     public string VendorName { get; set; } = string.Empty;
+    public string? ContactPerson { get; set; }
+    public string? ContactEmail { get; set; }
+    public string? VendorResponseNotes { get; set; }
+    public string? Notes { get; set; }
+}
+
+public class UpdateConsultantVendorReachOutDto
+{
+    public DateTime ReachedDate { get; set; }
+    public string VendorName { get; set; } = string.Empty;
+    public string? ContactPerson { get; set; }
+    public string? ContactEmail { get; set; }
+    public string? VendorResponseNotes { get; set; }
+    public string? Notes { get; set; }
+}
+
+public class PatchDailyActivityNotesDto
+{
+    public string? Notes { get; set; }
+}
+
+public class UpdateConsultantSubmissionCommunicationDto
+{
+    public string? ConsultantCommunication { get; set; }
+}
+
+public class UpdateConsultantInterviewDto
+{
+    public DateTime InterviewDate { get; set; }
+    public DateTime? InterviewEndDate { get; set; }
+    public string? InterviewMode { get; set; }
+    public string? Round { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public string? Feedback { get; set; }
     public string? Notes { get; set; }
 }

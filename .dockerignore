@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+**/.vs/
+**/.idea/
+**/node_modules/
+**/dist/
+**/.angular/
+**/.git/
+**/.DS_Store
+ConsultancyManagement.Api/wwwroot/uploads/
+consultancy-management-ui/node_modules/

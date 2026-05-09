@@ -8,6 +8,8 @@ export interface ManagementFileCatalogItem {
   title: string;
   subtitle?: string | null;
   consultantName?: string | null;
+  /** Folder under uploads/ for consultant documents (Kind === Document). */
+  consultantStorageFolder?: string | null;
   salesRecruiterName?: string | null;
   vendorName?: string | null;
   fileName: string;
@@ -25,6 +27,9 @@ export class ManagementService {
   }
   consultants() {
     return this.http.get<unknown[]>(`${this.base}/consultants`);
+  }
+  salesRecruiters() {
+    return this.http.get<unknown[]>(`${this.base}/sales-recruiters`);
   }
   submissions() {
     return this.http.get<unknown[]>(`${this.base}/submissions`);

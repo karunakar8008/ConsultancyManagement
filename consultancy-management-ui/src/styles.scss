@@ -1,38 +1,350 @@
-/* Consultancy Management System — theme */
+/* Consultancy portal — design system (all roles share these tokens) */
 :root {
-  --cms-primary: #1e3a8a;
-  --cms-accent: #2563eb;
-  --cms-bg: #f8fafc;
+  --cms-font: 'Inter', system-ui, -apple-system, sans-serif;
+  --cms-font-display: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+
+  --cms-primary: #2563eb;
+  --cms-primary-dark: #1d4ed8;
+  --cms-primary-deep: #1e3a8a;
+  --cms-accent: #0ea5e9;
+  --cms-violet: #6366f1;
+  --cms-success: #059669;
+
+  --cms-bg: #eef2f9;
   --cms-surface: #ffffff;
-  --cms-text: #111827;
+  --cms-surface-muted: #f8fafc;
+  --cms-text: #0f172a;
+  --cms-text-muted: #64748b;
+  --cms-border: rgba(15, 23, 42, 0.07);
+  --cms-border-focus: rgba(37, 99, 235, 0.35);
+
+  --cms-radius-sm: 10px;
+  --cms-radius-md: 14px;
+  --cms-radius-lg: 18px;
+  --cms-radius-xl: 22px;
+
+  --cms-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --cms-shadow-md: 0 4px 24px rgba(15, 23, 42, 0.06);
+  --cms-shadow-lg: 0 16px 48px rgba(30, 64, 175, 0.1);
+  --cms-inner-glow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+html {
+  box-sizing: border-box;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
 }
 
 html,
 body {
   height: 100%;
   margin: 0;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background: var(--cms-bg);
+  font-family: var(--cms-font);
+  color: var(--cms-text);
+  background-color: var(--cms-bg);
+  background-image:
+    radial-gradient(ellipse 90% 55% at 50% -15%, rgba(37, 99, 235, 0.14), transparent 55%),
+    radial-gradient(ellipse 50% 45% at 100% 10%, rgba(14, 165, 233, 0.08), transparent 50%),
+    radial-gradient(ellipse 45% 40% at 0% 90%, rgba(99, 102, 241, 0.07), transparent 55%);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: rgba(37, 99, 235, 0.18);
   color: var(--cms-text);
 }
 
-.mat-mdc-card {
-  border-radius: 12px !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+/* Headings in routed views */
+.page-title {
+  font-family: var(--cms-font-display);
+  font-size: clamp(1.35rem, 2.5vw, 1.65rem);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--cms-text);
+  margin: 0 0 1.25rem;
+  line-height: 1.2;
 }
 
+h2.page-title,
+h1.page-title {
+  background: linear-gradient(120deg, var(--cms-text) 0%, var(--cms-primary-dark) 55%, var(--cms-violet) 110%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@supports not ((-webkit-background-clip: text) or (background-clip: text)) {
+  h2.page-title,
+  h1.page-title {
+    color: var(--cms-text);
+    background: none;
+  }
+}
+
+/* Cards — app content (not auth login-card which sets its own) */
+.mat-mdc-card:not(.login-card):not(.auth-mat-card) {
+  border-radius: var(--cms-radius-md) !important;
+  border: 1px solid var(--cms-border);
+  box-shadow: var(--cms-shadow-md) !important;
+  background: var(--cms-surface);
+  transition:
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.mat-mdc-card:not(.login-card):not(.auth-mat-card):hover {
+  box-shadow: var(--cms-shadow-lg) !important;
+  border-color: rgba(59, 130, 246, 0.12);
+}
+
+mat-card.panel,
+.mat-mdc-card.panel {
+  border-radius: var(--cms-radius-lg) !important;
+  padding: 1.35rem 1.5rem !important;
+}
+
+/* Data tables — horizontal scroll on small screens instead of squashing columns */
+.mat-mdc-card.panel {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mat-mdc-table {
+  border: 1px solid var(--cms-border);
+  border-radius: var(--cms-radius-sm);
+  overflow: hidden;
+  min-width: min(100%, 560px);
+}
+
+@media (max-width: 959px) {
+  .mat-mdc-table {
+    min-width: 520px;
+  }
+
+  mat-card.panel,
+  .mat-mdc-card.panel {
+    padding: 1rem 1rem !important;
+  }
+}
+
+@media (max-width: 599px) {
+  .page-title {
+    margin-bottom: 1rem;
+    font-size: clamp(1.15rem, 4.5vw, 1.45rem);
+  }
+}
+
+.mat-mdc-header-row {
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%) !important;
+}
+
+.mat-mdc-header-cell {
+  font-family: var(--cms-font-display) !important;
+  font-weight: 600 !important;
+  font-size: 0.8rem !important;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cms-text-muted) !important;
+}
+
+.mat-mdc-row:nth-child(even) .mat-mdc-cell {
+  background: rgba(248, 250, 252, 0.65);
+}
+
+.mat-mdc-cell {
+  border-bottom-color: var(--cms-border) !important;
+}
+
+/* Primary actions */
 .mat-toolbar.mat-primary,
 mat-toolbar.mat-primary {
-  background: var(--cms-primary) !important;
+  background: linear-gradient(95deg, var(--cms-primary-deep) 0%, var(--cms-primary) 100%) !important;
 }
 
 .mat-mdc-raised-button.mat-primary,
-.mat-mdc-flat-button.mat-primary {
-  --mdc-filled-button-container-color: var(--cms-accent);
+.mat-mdc-flat-button.mat-primary,
+.mat-mdc-unelevated-button.mat-primary,
+.mat-mdc-button.mat-primary {
+  --mdc-filled-button-container-color: var(--cms-primary);
+  --mat-filled-button-state-layer-color: rgba(255, 255, 255, 0.15);
+  border-radius: var(--cms-radius-sm) !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em;
 }
 
-.page-title {
-  font-size: 1.35rem;
+.mat-mdc-outlined-button,
+.mat-mdc-stroked-button {
+  border-radius: var(--cms-radius-sm) !important;
   font-weight: 600;
-  margin: 0 0 1rem;
+}
+
+.mat-mdc-icon-button.mat-primary {
+  --mat-icon-button-icon-color: var(--cms-primary);
+}
+
+/* Expansion panels */
+.mat-expansion-panel {
+  border-radius: var(--cms-radius-md) !important;
+  border: 1px solid var(--cms-border) !important;
+  box-shadow: var(--cms-shadow-sm) !important;
+  overflow: hidden;
+}
+
+.mat-expansion-panel-header {
+  font-family: var(--cms-font-display);
+}
+
+/* Chips / misc */
+.mat-mdc-form-field-subscript-wrapper {
+  font-size: 0.8rem;
+}
+
+/* ---------- Auth pages (login, forgot, reset share layout classes) ---------- */
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: linear-gradient(165deg, #f0f4fb 0%, #e0e7ff 38%, #dbeafe 72%, #cffafe 100%);
+}
+
+.auth-page::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 15% 25%, rgba(59, 130, 246, 0.18), transparent 42%),
+    radial-gradient(circle at 85% 15%, rgba(14, 165, 233, 0.14), transparent 38%),
+    radial-gradient(circle at 70% 85%, rgba(99, 102, 241, 0.1), transparent 45%);
+  z-index: 0;
+}
+
+.login-wrap,
+.auth-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.75rem 1.25rem 2.5rem;
+  position: relative;
+  z-index: 1;
+}
+
+.login-card,
+.mat-mdc-card.auth-mat-card,
+mat-card.card {
+  width: 100%;
+  max-width: 440px;
+  padding: 2rem 2rem 1.75rem !important;
+  border-radius: var(--cms-radius-xl) !important;
+  border: 1px solid rgba(255, 255, 255, 0.65) !important;
+  background: rgba(255, 255, 255, 0.78) !important;
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  box-shadow:
+    var(--cms-inner-glow),
+    0 24px 60px rgba(30, 58, 138, 0.14),
+    0 4px 16px rgba(15, 23, 42, 0.06) !important;
+}
+
+.login-card .brand h1,
+.auth-page mat-card.card h1 {
+  font-family: var(--cms-font-display);
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin: 0 0 0.4rem;
+  background: linear-gradient(115deg, var(--cms-text) 0%, var(--cms-primary) 45%, var(--cms-violet) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@supports not ((-webkit-background-clip: text) or (background-clip: text)) {
+  .login-card .brand h1,
+  .auth-page mat-card.card h1 {
+    color: var(--cms-text);
+    background: none;
+  }
+}
+
+.login-card .sub,
+.auth-page .intro {
+  margin: 0 0 1.5rem;
+  color: var(--cms-text-muted);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.login-card .full,
+.auth-page .full {
+  width: 100%;
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+.login-card .full-btn,
+.auth-page .full-btn {
+  width: 100%;
+  margin-top: 0.85rem;
+  height: 46px;
+  font-size: 0.95rem;
+}
+
+.login-card .error {
+  color: #dc2626;
+  font-size: 0.875rem;
+  margin: 0.35rem 0 0.5rem;
+}
+
+.login-card .forgot {
+  margin-top: 1.15rem;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.login-card .forgot a {
+  color: var(--cms-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.login-card .forgot a:hover {
+  text-decoration: underline;
+  color: var(--cms-primary-dark);
+}
+
+/* Shell navigation (class on sidenav container in layout) */
+.shell.app-shell mat-nav-list .mat-mdc-list-item {
+  border-radius: var(--cms-radius-md) !important;
+  margin: 4px 10px !important;
+  transition:
+    background 0.18s ease,
+    transform 0.15s ease,
+    box-shadow 0.18s ease;
+}
+
+.shell.app-shell mat-nav-list .mat-mdc-list-item:hover {
+  background: rgba(255, 255, 255, 0.55) !important;
+}
+
+.shell.app-shell mat-nav-list a.mat-mdc-list-item.active-link {
+  background: linear-gradient(125deg, rgba(37, 99, 235, 0.2) 0%, rgba(99, 102, 241, 0.14) 100%) !important;
+  box-shadow: 0 2px 12px rgba(37, 99, 235, 0.12);
+  font-weight: 600;
+}
+
+.shell.app-shell mat-nav-list .mat-mdc-list-item .mat-icon {
+  color: var(--cms-primary-deep);
+}
+
+.shell.app-shell mat-nav-list a.mat-mdc-list-item.active-link .mat-icon {
+  color: var(--cms-primary);
 }

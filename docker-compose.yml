@@ -1,0 +1,14 @@
+services:
+  consultancy-api:
+    build:
+      context: .
+      dockerfile: ConsultancyManagement.Api/Dockerfile
+    container_name: consultancy-api
+    env_file:
+      - ConsultancyManagement.Api/.env
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      PORT: 8000
+    ports:
+      - "8000:8000"
+    restart: unless-stopped

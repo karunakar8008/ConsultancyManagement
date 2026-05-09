@@ -45,6 +45,10 @@
     <ng-container matColumnDef="client"><th mat-header-cell *matHeaderCellDef>Client</th><td mat-cell *matCellDef="let r">{{ r.clientName }}</td></ng-container>
     <ng-container matColumnDef="date"><th mat-header-cell *matHeaderCellDef>Date</th><td mat-cell *matCellDef="let r">{{ r.submissionDate | date }}</td></ng-container>
     <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef>Status</th><td mat-cell *matCellDef="let r">{{ r.status }}</td></ng-container>
+    <ng-container matColumnDef="notes">
+      <th mat-header-cell *matHeaderCellDef>Notes</th>
+      <td mat-cell *matCellDef="let r" class="text-cell">{{ textOrDash(r.notes) }}</td>
+    </ng-container>
     <ng-container matColumnDef="proof"><th mat-header-cell *matHeaderCellDef>Proof</th><td mat-cell *matCellDef="let r">@if (r.hasProof) { <span class="icon-actions"><button mat-icon-button type="button" color="primary" matTooltip="View" (click)="viewProof(r)"><mat-icon>visibility</mat-icon></button><button mat-icon-button type="button" matTooltip="Download" (click)="downloadProof(r)"><mat-icon>download</mat-icon></button></span> } @else { — }</td></ng-container>
     <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef></th><td mat-cell *matCellDef="let r"><button mat-icon-button type="button" (click)="startEdit(r)" title="Edit"><mat-icon>edit</mat-icon></button></td></ng-container>
     <tr mat-header-row *matHeaderRowDef="cols"></tr>

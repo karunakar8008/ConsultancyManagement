@@ -10,6 +10,12 @@ using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var port = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrWhiteSpace(port))
+{
+    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+}
+
 builder.Services.Configure<FormOptions>(options =>
 {
     options.MultipartBodyLengthLimit = 21 * 1024 * 1024;
@@ -45,10 +51,22 @@ builder.Services.AddSwaggerGen(c =>
 
 builder.Services.AddCors(options =>
 {
+    var configuredOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+    var origins = (configuredOrigins is { Length: > 0 } ? configuredOrigins : new[] { "http://localhost:4200" })
+        .Where(o => !string.IsNullOrWhiteSpace(o))
+        .Select(o => o.Trim().TrimEnd('/'))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToArray();
+
     options.AddPolicy("Angular", policy =>
-        policy.WithOrigins("http://localhost:4200")
-            .AllowAnyHeader()
-            .AllowAnyMethod());
+    {
+        if (origins.Length > 0)
+        {
+            policy.WithOrigins(origins)
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+        }
+    });
 });
 
 var jwtSection = builder.Configuration.GetSection("Jwt");
@@ -89,6 +107,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapGet("/", () => Results.Redirect("/swagger"));
+app.MapGet("/health", () => Results.Ok(new { status = "ok", service = "consultancy-api", utc = DateTime.UtcNow }));
 
 var loggerFactory = app.Services.GetRequiredService<ILoggerFactory>();
 var startupLogger = loggerFactory.CreateLogger("Startup");
@@ -98,7 +117,7 @@ try
 }
 catch (Exception ex)
 {
-    startupLogger.LogError(ex, "Database seeding failed. Ensure SQL Server is running and connection string is valid.");
+    startupLogger.LogError(ex, "Database seeding failed. Ensure PostgreSQL is running and connection string is valid.");
 }
 
 app.Run();

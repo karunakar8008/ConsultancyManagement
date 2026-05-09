@@ -40,6 +40,7 @@ public class DailyActivitySuggestionsDto
 {
     public int JobsAppliedCount { get; set; }
     public int VendorReachedOutCount { get; set; }
+    public int VendorResponseCount { get; set; }
     public int SubmissionsCount { get; set; }
     public int InterviewCallsCount { get; set; }
 }
@@ -80,6 +81,8 @@ public class ConsultantSubmissionDto
     public DateTime SubmissionDate { get; set; }
     public string Status { get; set; } = string.Empty;
     public string? Notes { get; set; }
+    /// <summary>Consultant-only updates about vendor communication.</summary>
+    public string? ConsultantCommunication { get; set; }
     public bool HasProof { get; set; }
 }
 
@@ -147,6 +150,7 @@ public class InterviewDto
     public string ConsultantName { get; set; } = string.Empty;
     public string JobTitle { get; set; } = string.Empty;
     public DateTime InterviewDate { get; set; }
+    public DateTime? InterviewEndDate { get; set; }
     public string? InterviewMode { get; set; }
     public string? Round { get; set; }
     public string Status { get; set; } = string.Empty;
@@ -162,8 +166,12 @@ public class ConsultantInterviewDto
     public string SubmissionCode { get; set; } = string.Empty;
     public string JobTitle { get; set; } = string.Empty;
     public DateTime InterviewDate { get; set; }
+    public DateTime? InterviewEndDate { get; set; }
     public string? InterviewMode { get; set; }
+    public string? Round { get; set; }
     public string Status { get; set; } = string.Empty;
+    public string? Feedback { get; set; }
+    public string? Notes { get; set; }
     public bool HasInviteProof { get; set; }
 }
 
@@ -172,6 +180,9 @@ public class ConsultantVendorReachOutDto
     public int Id { get; set; }
     public DateTime ReachedDate { get; set; }
     public string VendorName { get; set; } = string.Empty;
+    public string? ContactPerson { get; set; }
+    public string? ContactEmail { get; set; }
+    public string? VendorResponseNotes { get; set; }
     public string? Notes { get; set; }
 }
 
@@ -212,10 +223,16 @@ public class DocumentDto
     public int Id { get; set; }
     public int ConsultantId { get; set; }
     public string ConsultantName { get; set; } = string.Empty;
+    /// <summary>Folder segment under wwwroot/uploads for this consultant.</summary>
+    public string StorageFolder { get; set; } = string.Empty;
     public string DocumentType { get; set; } = string.Empty;
     public string FileName { get; set; } = string.Empty;
     public DateTime UploadedAt { get; set; }
     public string Status { get; set; } = string.Empty;
+    /// <summary>True when an admin review locked this document (non-admins cannot change review).</summary>
+    public bool LockedAfterAdminDecision { get; set; }
+    /// <summary>UserRole name of the last reviewer tier (Admin, Management, SalesRecruiter).</summary>
+    public string? LastReviewAuthority { get; set; }
 }
 
 public class ReviewDocumentRequestDto
@@ -232,9 +249,25 @@ public class ManagementFileCatalogItemDto
     public string Title { get; set; } = string.Empty;
     public string? Subtitle { get; set; }
     public string? ConsultantName { get; set; }
+    /// <summary>Set for Kind Document: uploads subfolder name for that consultant.</summary>
+    public string? ConsultantStorageFolder { get; set; }
     public string? SalesRecruiterName { get; set; }
     public string? VendorName { get; set; }
     public string FileName { get; set; } = string.Empty;
     public bool HasFile { get; set; }
     public DateTime At { get; set; }
+}
+
+/// <summary>Admin interview calendar: one row per interview in a date range.</summary>
+public class InterviewCalendarEventDto
+{
+    public int Id { get; set; }
+    public string InterviewCode { get; set; } = string.Empty;
+    public string JobTitle { get; set; } = string.Empty;
+    public string ConsultantName { get; set; } = string.Empty;
+    public string SalesRecruiterName { get; set; } = string.Empty;
+    public DateTime InterviewDate { get; set; }
+    public DateTime? InterviewEndDate { get; set; }
+    public string? InterviewMode { get; set; }
+    public string Status { get; set; } = string.Empty;
 }

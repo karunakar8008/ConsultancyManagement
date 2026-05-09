@@ -5,61 +5,20 @@ import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatDialog } from '@angular/material/dialog';
 import { openBlobInNewTab, triggerBlobDownload } from '../../core/utils/blob-actions';
 import { ConsultantApiService, ConsultantInterviewRow } from '../../core/services/consultant-api.service';
 import { ToastrService } from 'ngx-toastr';
+import {
+  ConsultantInterviewEditDialogComponent,
+  ConsultantInterviewEditDialogResult
+} from '../shared/consultant-interview-edit-dialog.component';
 
 @Component({
   selector: 'app-consultant-interviews',
   standalone: true,
   imports: [DatePipe, MatCardModule, MatTableModule, MatButtonModule, MatIconModule, MatTooltipModule],
-  template: `
-    <h2 class="page-title">Interviews</h2>
-    <p class="hint">Scheduled by your sales team. Read-only here. Download the invite proof when attached.</p>
-    <mat-card class="panel">
-      <table mat-table [dataSource]="rows" class="full-table">
-        <ng-container matColumnDef="code">
-          <th mat-header-cell *matHeaderCellDef>Interview ID</th>
-          <td mat-cell *matCellDef="let r">{{ r.interviewCode }}</td>
-        </ng-container>
-        <ng-container matColumnDef="sub">
-          <th mat-header-cell *matHeaderCellDef>Submission</th>
-          <td mat-cell *matCellDef="let r">{{ r.submissionCode }}</td>
-        </ng-container>
-        <ng-container matColumnDef="job">
-          <th mat-header-cell *matHeaderCellDef>Job</th>
-          <td mat-cell *matCellDef="let r">{{ r.jobTitle }}</td>
-        </ng-container>
-        <ng-container matColumnDef="date">
-          <th mat-header-cell *matHeaderCellDef>Date</th>
-          <td mat-cell *matCellDef="let r">{{ r.interviewDate | date : 'short' }}</td>
-        </ng-container>
-        <ng-container matColumnDef="mode">
-          <th mat-header-cell *matHeaderCellDef>Mode</th>
-          <td mat-cell *matCellDef="let r">{{ r.interviewMode }}</td>
-        </ng-container>
-        <ng-container matColumnDef="status">
-          <th mat-header-cell *matHeaderCellDef>Status</th>
-          <td mat-cell *matCellDef="let r">{{ r.status }}</td>
-        </ng-container>
-        <ng-container matColumnDef="proof">
-          <th mat-header-cell *matHeaderCellDef>Invite</th>
-          <td mat-cell *matCellDef="let r">
-            @if (r.hasInviteProof) {
-              <span class="icon-actions">
-                <button mat-icon-button type="button" color="primary" matTooltip="View" (click)="viewProof(r)"><mat-icon>visibility</mat-icon></button>
-                <button mat-icon-button type="button" matTooltip="Download" (click)="downloadProof(r)"><mat-icon>download</mat-icon></button>
-              </span>
-            } @else {
-              —
-            }
-          </td>
-        </ng-container>
-        <tr mat-header-row *matHeaderRowDef="cols"></tr>
-        <tr mat-row *matRowDef="let row; columns: cols"></tr>
-      </table>
-    </mat-card>
-  `,
+  templateUrl: './consultant-interviews.component.html',
   styles: [
     `
       .panel {
@@ -78,16 +37,29 @@ import { ToastrService } from 'ngx-toastr';
         gap: 0.15rem;
         align-items: center;
       }
+      .text-cell {
+        max-width: 14rem;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-size: 0.875rem;
+        vertical-align: top;
+      }
     `
   ]
 })
 export class ConsultantInterviewsComponent implements OnInit {
   private readonly api = inject(ConsultantApiService);
   private readonly toast = inject(ToastrService);
-  cols = ['code', 'sub', 'job', 'date', 'mode', 'status', 'proof'];
+  private readonly dialog = inject(MatDialog);
+
+  cols = ['code', 'sub', 'job', 'date', 'to', 'mode', 'round', 'status', 'feedback', 'notes', 'edit', 'proof'];
   rows: ConsultantInterviewRow[] = [];
 
   ngOnInit(): void {
+    this.reload();
+  }
+
+  reload(): void {
     this.api.interviews().subscribe({
       next: (r) => (this.rows = r),
       error: () => this.toast.error('Failed to load interviews')
@@ -105,6 +77,28 @@ export class ConsultantInterviewsComponent implements OnInit {
     this.api.downloadProof('interview', r.id, false).subscribe({
       next: (blob) => triggerBlobDownload(blob, `${r.interviewCode}-invite`),
       error: () => this.toast.error('Download failed')
+    });
+  }
+
+  textOrDash(value: string | null | undefined): string {
+    const t = value?.trim();
+    return t ? t : '—';
+  }
+
+  openEdit(r: ConsultantInterviewRow): void {
+    const ref = this.dialog.open(ConsultantInterviewEditDialogComponent, {
+      width: 'min(560px, 94vw)',
+      data: { row: r }
+    });
+    ref.afterClosed().subscribe((result: ConsultantInterviewEditDialogResult | undefined) => {
+      if (!result) return;
+      this.api.updateInterview(r.id, result).subscribe({
+        next: () => {
+          this.toast.success('Interview updated');
+          this.reload();
+        },
+        error: (e: { error?: { message?: string } }) => this.toast.error(e?.error?.message ?? 'Update failed')
+      });
     });
   }
 }

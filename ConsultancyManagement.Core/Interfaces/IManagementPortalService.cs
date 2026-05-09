@@ -6,6 +6,7 @@ public interface IManagementPortalService
 {
     Task<ManagementDashboardDto> GetDashboardAsync();
     Task<IReadOnlyList<ConsultantListDto>> GetConsultantsAsync();
+    Task<IReadOnlyList<SalesRecruiterListDto>> GetSalesRecruitersAsync();
     Task<IReadOnlyList<DailyActivityDto>> GetConsultantActivitiesAsync(int consultantId);
     Task<IReadOnlyList<SubmissionReportRowDto>> GetSubmissionsAsync();
     Task<IReadOnlyList<OnboardingTaskDto>> GetOnboardingTasksAsync();

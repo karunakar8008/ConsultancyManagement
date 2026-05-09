@@ -32,7 +32,7 @@ export class SalesVendorsComponent implements OnInit {
   private readonly toast = inject(ToastrService);
   private readonly fb = inject(FormBuilder);
 
-  cols = ['code', 'vendor', 'contact', 'email', 'phone', 'company', 'proof', 'actions'];
+  cols = ['code', 'vendor', 'contact', 'email', 'phone', 'company', 'notes', 'proof', 'actions'];
   rows: VendorRow[] = [];
   editingId: number | null = null;
   contactProofFile: File | null = null;
@@ -103,6 +103,11 @@ export class SalesVendorsComponent implements OnInit {
       next: (blob) => triggerBlobDownload(blob, `${row.vendorCode}-contact`),
       error: () => this.toast.error('Download failed')
     });
+  }
+
+  textOrDash(value: string | null | undefined): string {
+    const t = value?.trim();
+    return t ? t : '—';
   }
 
   save(): void {

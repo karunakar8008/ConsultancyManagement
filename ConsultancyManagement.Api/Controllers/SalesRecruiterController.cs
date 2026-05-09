@@ -3,9 +3,12 @@ using ConsultancyManagement.Api.Helpers;
 using ConsultancyManagement.Core.DTOs;
 using ConsultancyManagement.Core.Enums;
 using ConsultancyManagement.Core.Interfaces;
+using ConsultancyManagement.Infrastructure.Data;
+using ConsultancyManagement.Infrastructure.Helpers;
 using ConsultancyManagement.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace ConsultancyManagement.Api.Controllers;
 
@@ -22,11 +25,13 @@ public class SalesRecruiterController : ControllerBase
 
     private readonly ISalesPortalService _svc;
     private readonly IHostEnvironment _env;
+    private readonly ApplicationDbContext _db;
 
-    public SalesRecruiterController(ISalesPortalService svc, IHostEnvironment env)
+    public SalesRecruiterController(ISalesPortalService svc, IHostEnvironment env, ApplicationDbContext db)
     {
         _svc = svc;
         _env = env;
+        _db = db;
     }
 
     private bool IsElevated => UserContextHelper.IsInAnyRole(User,
@@ -56,6 +61,9 @@ public class SalesRecruiterController : ControllerBase
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> CreateVendor([FromForm] SalesVendorFormDto form)
     {
+        if (form.ContactProof is { Length: > 0 } && (!form.ConsultantId.HasValue || form.ConsultantId <= 0))
+            return BadRequest(new { message = "Consultant is required when uploading a vendor contact proof (files are stored in that consultant's folder)." });
+
         var dto = new CreateVendorRequestDto
         {
             VendorName = form.VendorName,
@@ -64,13 +72,14 @@ public class SalesRecruiterController : ControllerBase
             PhoneNumber = form.PhoneNumber,
             CompanyName = form.CompanyName,
             LinkedInUrl = form.LinkedInUrl,
-            Notes = form.Notes
+            Notes = form.Notes,
+            LinkedConsultantId = form.ConsultantId is > 0 ? form.ConsultantId : null
         };
 
         string? proofPath = null;
         if (form.ContactProof is { Length: > 0 })
         {
-            var (saved, err, path) = await SaveSalesUploadAsync(form.ContactProof, "vendor-contact");
+            var (saved, err, path) = await SaveSalesUploadAsync(form.ContactProof, dto.LinkedConsultantId);
             if (!saved) return BadRequest(new { message = err });
             proofPath = path;
         }
@@ -88,6 +97,15 @@ public class SalesRecruiterController : ControllerBase
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> UpdateVendor(int id, [FromForm] SalesVendorFormDto form)
     {
+        int? proofConsultantId = form.ConsultantId is > 0 ? form.ConsultantId : null;
+        if (proofConsultantId is null && form.ContactProof is { Length: > 0 })
+        {
+            var prev = await _db.Vendors.AsNoTracking().FirstOrDefaultAsync(v => v.Id == id);
+            proofConsultantId = prev?.LinkedConsultantId;
+        }
+        if (form.ContactProof is { Length: > 0 } && (!proofConsultantId.HasValue || proofConsultantId <= 0))
+            return BadRequest(new { message = "Consultant is required when uploading a vendor contact proof (or link a consultant on this vendor first)." });
+
         var dto = new CreateVendorRequestDto
         {
             VendorName = form.VendorName,
@@ -96,13 +114,14 @@ public class SalesRecruiterController : ControllerBase
             PhoneNumber = form.PhoneNumber,
             CompanyName = form.CompanyName,
             LinkedInUrl = form.LinkedInUrl,
-            Notes = form.Notes
+            Notes = form.Notes,
+            LinkedConsultantId = form.ConsultantId is > 0 ? form.ConsultantId : null
         };
 
         string? proofPath = null;
         if (form.ContactProof is { Length: > 0 })
         {
-            var (saved, err, path) = await SaveSalesUploadAsync(form.ContactProof, "vendor-contact");
+            var (saved, err, path) = await SaveSalesUploadAsync(form.ContactProof, proofConsultantId);
             if (!saved) return BadRequest(new { message = err });
             proofPath = path;
         }
@@ -127,7 +146,7 @@ public class SalesRecruiterController : ControllerBase
         if (form.ProofFile is null || form.ProofFile.Length == 0)
             return BadRequest(new { message = "Submission proof file is required." });
 
-        var (saved, saveErr, proofPath) = await SaveSalesUploadAsync(form.ProofFile, "submissions");
+        var (saved, saveErr, proofPath) = await SaveSalesUploadAsync(form.ProofFile, form.ConsultantId);
         if (!saved) return BadRequest(new { message = saveErr });
 
         var dto = new CreateSubmissionRequestDto
@@ -170,7 +189,7 @@ public class SalesRecruiterController : ControllerBase
         string? proofPath = null;
         if (form.ProofFile is { Length: > 0 })
         {
-            var (saved, saveErr, path) = await SaveSalesUploadAsync(form.ProofFile, "submissions");
+            var (saved, saveErr, path) = await SaveSalesUploadAsync(form.ProofFile, form.ConsultantId);
             if (!saved) return BadRequest(new { message = saveErr });
             proofPath = path;
         }
@@ -208,13 +227,17 @@ public class SalesRecruiterController : ControllerBase
         if (form.InviteProofFile is null || form.InviteProofFile.Length == 0)
             return BadRequest(new { message = "Interview invite proof file is required." });
 
-        var (saved, saveErr, invitePath) = await SaveSalesUploadAsync(form.InviteProofFile, "interviews");
+        var submission = await _db.Submissions.AsNoTracking().FirstOrDefaultAsync(s => s.Id == form.SubmissionId);
+        if (submission is null) return BadRequest(new { message = "Submission not found." });
+
+        var (saved, saveErr, invitePath) = await SaveSalesUploadAsync(form.InviteProofFile, submission.ConsultantId);
         if (!saved) return BadRequest(new { message = saveErr });
 
         var dto = new CreateInterviewRequestDto
         {
             SubmissionId = form.SubmissionId,
             InterviewDate = form.InterviewDate,
+            InterviewEndDate = form.InterviewEndDate,
             InterviewMode = form.InterviewMode,
             Round = form.Round,
             Status = form.Status,
@@ -262,7 +285,9 @@ public class SalesRecruiterController : ControllerBase
         string? invitePath = null;
         if (form.InviteProofFile is { Length: > 0 })
         {
-            var (saved, saveErr, path) = await SaveSalesUploadAsync(form.InviteProofFile, "interviews");
+            var submission = await _db.Submissions.AsNoTracking().FirstOrDefaultAsync(s => s.Id == form.SubmissionId);
+            if (submission is null) return BadRequest(new { message = "Submission not found." });
+            var (saved, saveErr, path) = await SaveSalesUploadAsync(form.InviteProofFile, submission.ConsultantId);
             if (!saved) return BadRequest(new { message = saveErr });
             invitePath = path;
         }
@@ -271,6 +296,7 @@ public class SalesRecruiterController : ControllerBase
         {
             SubmissionId = form.SubmissionId,
             InterviewDate = form.InterviewDate,
+            InterviewEndDate = form.InterviewEndDate,
             InterviewMode = form.InterviewMode,
             Round = form.Round,
             Status = form.Status,
@@ -289,7 +315,9 @@ public class SalesRecruiterController : ControllerBase
         return Ok(new { message = "Interview updated successfully" });
     }
 
-    private async Task<(bool Ok, string? Error, string? RelativePath)> SaveSalesUploadAsync(IFormFile file, string category)
+    /// <summary>Stores vendor, submission, and interview proofs under uploads/{consultant}/proofs/.</summary>
+    private async Task<(bool Ok, string? Error, string? RelativePath)> SaveSalesUploadAsync(
+        IFormFile file, int? consultantId)
     {
         if (file.Length <= 0 || file.Length > MaxUploadBytes)
             return (false, "File is empty or too large (max 20 MB).", null);
@@ -298,13 +326,17 @@ public class SalesRecruiterController : ControllerBase
         if (string.IsNullOrEmpty(ext) || !AllowedExtensions.Contains(ext))
             return (false, "File type not allowed. Use PDF, Word, images, or TXT.", null);
 
-        var userId = UserContextHelper.GetUserId(User);
-        if (string.IsNullOrEmpty(userId))
-            return (false, "User not found.", null);
+        if (!consultantId.HasValue || consultantId <= 0)
+            return (false, "Consultant is required for file storage path.", null);
 
+        var c = await _db.Consultants.AsNoTracking().FirstOrDefaultAsync(x => x.Id == consultantId.Value);
+        if (c is null) return (false, "Consultant not found.", null);
+
+        var folderSeg = ConsultantFolderNameHelper.BuildSegment(c.FirstName, c.LastName, c.Id);
         var safeName = Path.GetFileName(file.FileName);
         var unique = $"{DateTime.UtcNow:yyyyMMddHHmmssfff}_{safeName}";
-        var relativeDir = Path.Combine("uploads", "sales", userId, category);
+        const string proofFolder = "proofs";
+        var relativeDir = Path.Combine("uploads", folderSeg, proofFolder);
         var wwwroot = Path.Combine(_env.ContentRootPath, "wwwroot");
         var dir = Path.Combine(wwwroot, relativeDir);
         Directory.CreateDirectory(dir);

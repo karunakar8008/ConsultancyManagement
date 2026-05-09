@@ -75,6 +75,15 @@ public class ConsultantController : ControllerBase
         return Ok(new { message = "Daily activity updated successfully" });
     }
 
+    /// <summary>Consultant-only: update notes on a daily activity row.</summary>
+    [HttpPatch("daily-activities/{id:int}/notes")]
+    public async Task<IActionResult> PatchDailyNotes(int id, [FromBody] PatchDailyActivityNotesDto dto)
+    {
+        var (ok, err) = await _svc.PatchDailyActivityNotesAsync(User, id, dto);
+        if (!ok) return BadRequest(new { message = err });
+        return Ok(new { message = "Notes saved." });
+    }
+
     [HttpPost("job-applications")]
     public async Task<IActionResult> CreateJob([FromBody] CreateJobApplicationRequestDto dto, [FromQuery] int? consultantId)
     {
@@ -99,9 +108,30 @@ public class ConsultantController : ControllerBase
     public async Task<IActionResult> Submissions([FromQuery] int? consultantId) =>
         Ok(await _svc.GetSubmissionsAsync(User, IsElevated, consultantId));
 
+    [HttpPut("submissions/{id:int}/consultant-communication")]
+    public async Task<IActionResult> UpdateSubmissionCommunication(
+        int id, [FromBody] UpdateConsultantSubmissionCommunicationDto dto)
+    {
+        var (ok, err) = await _svc.UpdateSubmissionConsultantCommunicationAsync(User, id, dto);
+        if (!ok) return err == "Forbidden." ? StatusCode(403, new { message = err }) :
+            err?.Contains("not found") == true ? NotFound(new { message = err }) :
+            BadRequest(new { message = err });
+        return Ok(new { message = "Communication saved." });
+    }
+
     [HttpGet("interviews")]
     public async Task<IActionResult> Interviews([FromQuery] int? consultantId) =>
         Ok(await _svc.GetConsultantInterviewsAsync(User, IsElevated, consultantId));
+
+    [HttpPut("interviews/{id:int}")]
+    public async Task<IActionResult> UpdateInterview(int id, [FromBody] UpdateConsultantInterviewDto dto)
+    {
+        var (ok, err) = await _svc.UpdateConsultantInterviewAsync(User, id, dto);
+        if (!ok) return err == "Forbidden." ? StatusCode(403, new { message = err }) :
+            err?.Contains("not found") == true ? NotFound(new { message = err }) :
+            BadRequest(new { message = err });
+        return Ok(new { message = "Interview updated." });
+    }
 
     [HttpGet("vendor-reach-outs")]
     public async Task<IActionResult> VendorReachOuts([FromQuery] int? consultantId) =>
@@ -115,6 +145,17 @@ public class ConsultantController : ControllerBase
         var (ok, err) = await _svc.CreateVendorReachOutAsync(User, IsElevated, consultantId, dto);
         if (!ok) return BadRequest(new { message = err });
         return Ok(new { message = "Vendor reach-out saved successfully" });
+    }
+
+    [HttpPut("vendor-reach-outs/{id:int}")]
+    public async Task<IActionResult> UpdateVendorReachOut(
+        int id,
+        [FromBody] UpdateConsultantVendorReachOutDto dto,
+        [FromQuery] int? consultantId)
+    {
+        var (ok, err) = await _svc.UpdateVendorReachOutAsync(User, IsElevated, consultantId, id, dto);
+        if (!ok) return err?.Contains("not found") == true ? NotFound(new { message = err }) : BadRequest(new { message = err });
+        return Ok(new { message = "Vendor reach-out updated." });
     }
 
     [HttpGet("documents")]

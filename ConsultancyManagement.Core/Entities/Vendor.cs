@@ -16,9 +16,12 @@ public class Vendor
     public string? Notes { get; set; }
     /// <summary>Optional proof file (relative path under wwwroot).</summary>
     public string? ContactProofFilePath { get; set; }
+    /// <summary>Optional consultant used for storing contact proofs under that consultant's uploads folder.</summary>
+    public int? LinkedConsultantId { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
 
     public SalesRecruiter? SalesRecruiter { get; set; }
+    public Consultant? LinkedConsultant { get; set; }
     public ICollection<Submission> Submissions { get; set; } = new List<Submission>();
 }

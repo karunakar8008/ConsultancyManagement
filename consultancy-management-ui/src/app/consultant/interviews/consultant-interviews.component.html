@@ -1,0 +1,69 @@
+<h2 class="page-title">Interviews</h2>
+<p class="hint">Scheduled by your sales team. Update interview details, feedback, and notes below. Download the invite proof when attached.</p>
+<mat-card class="panel">
+  <table mat-table [dataSource]="rows" class="full-table">
+    <ng-container matColumnDef="code">
+      <th mat-header-cell *matHeaderCellDef>Interview ID</th>
+      <td mat-cell *matCellDef="let r">{{ r.interviewCode }}</td>
+    </ng-container>
+    <ng-container matColumnDef="sub">
+      <th mat-header-cell *matHeaderCellDef>Submission</th>
+      <td mat-cell *matCellDef="let r">{{ r.submissionCode }}</td>
+    </ng-container>
+    <ng-container matColumnDef="job">
+      <th mat-header-cell *matHeaderCellDef>Job</th>
+      <td mat-cell *matCellDef="let r">{{ r.jobTitle }}</td>
+    </ng-container>
+    <ng-container matColumnDef="date">
+      <th mat-header-cell *matHeaderCellDef>From</th>
+      <td mat-cell *matCellDef="let r">{{ r.interviewDate | date : 'short' }}</td>
+    </ng-container>
+    <ng-container matColumnDef="to">
+      <th mat-header-cell *matHeaderCellDef>To</th>
+      <td mat-cell *matCellDef="let r">{{ r.interviewEndDate ? (r.interviewEndDate | date : 'short') : '—' }}</td>
+    </ng-container>
+    <ng-container matColumnDef="mode">
+      <th mat-header-cell *matHeaderCellDef>Mode</th>
+      <td mat-cell *matCellDef="let r">{{ r.interviewMode }}</td>
+    </ng-container>
+    <ng-container matColumnDef="round">
+      <th mat-header-cell *matHeaderCellDef>Round</th>
+      <td mat-cell *matCellDef="let r">{{ textOrDash(r.round) }}</td>
+    </ng-container>
+    <ng-container matColumnDef="status">
+      <th mat-header-cell *matHeaderCellDef>Status</th>
+      <td mat-cell *matCellDef="let r">{{ r.status }}</td>
+    </ng-container>
+    <ng-container matColumnDef="feedback">
+      <th mat-header-cell *matHeaderCellDef>Feedback</th>
+      <td mat-cell *matCellDef="let r" class="text-cell">{{ textOrDash(r.feedback) }}</td>
+    </ng-container>
+    <ng-container matColumnDef="notes">
+      <th mat-header-cell *matHeaderCellDef>Notes</th>
+      <td mat-cell *matCellDef="let r" class="text-cell">{{ textOrDash(r.notes) }}</td>
+    </ng-container>
+    <ng-container matColumnDef="edit">
+      <th mat-header-cell *matHeaderCellDef></th>
+      <td mat-cell *matCellDef="let r">
+        <button mat-icon-button type="button" color="primary" matTooltip="Edit interview" (click)="openEdit(r)">
+          <mat-icon>edit</mat-icon>
+        </button>
+      </td>
+    </ng-container>
+    <ng-container matColumnDef="proof">
+      <th mat-header-cell *matHeaderCellDef>Invite</th>
+      <td mat-cell *matCellDef="let r">
+        @if (r.hasInviteProof) {
+          <span class="icon-actions">
+            <button mat-icon-button type="button" color="primary" matTooltip="View" (click)="viewProof(r)"><mat-icon>visibility</mat-icon></button>
+            <button mat-icon-button type="button" matTooltip="Download" (click)="downloadProof(r)"><mat-icon>download</mat-icon></button>
+          </span>
+        } @else {
+          —
+        }
+      </td>
+    </ng-container>
+    <tr mat-header-row *matHeaderRowDef="cols"></tr>
+    <tr mat-row *matRowDef="let row; columns: cols"></tr>
+  </table>
+</mat-card>

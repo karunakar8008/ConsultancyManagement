@@ -19,8 +19,8 @@ public class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Applicati
             .AddEnvironmentVariables()
             .Build();
 
-        var cs = config.GetConnectionString("DefaultConnection")
-                 ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection is not configured.");
+        var cs = config["DATABASE_URL"] ?? config.GetConnectionString("DefaultConnection")
+                 ?? throw new InvalidOperationException("DATABASE_URL or ConnectionStrings:DefaultConnection is not configured.");
 
         var options = new DbContextOptionsBuilder<ApplicationDbContext>();
         options.UseNpgsql(cs);

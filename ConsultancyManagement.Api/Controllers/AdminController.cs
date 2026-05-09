@@ -174,4 +174,9 @@ public class AdminController : ControllerBase
         if (!ok) return NotFound(new { message = err });
         return Ok(new { message = "Assignment updated successfully" });
     }
+
+    /// <summary>Interviews overlapping [from, to) (UTC). Used by the admin calendar pane.</summary>
+    [HttpGet("interview-calendar")]
+    public async Task<IActionResult> InterviewCalendar([FromQuery] DateTime from, [FromQuery] DateTime to) =>
+        Ok(await _admin.GetInterviewCalendarAsync(from, to));
 }

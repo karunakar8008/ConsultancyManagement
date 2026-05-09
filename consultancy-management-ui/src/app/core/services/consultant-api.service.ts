@@ -5,6 +5,7 @@ import { environment } from '../../../environments/environment';
 export interface DailyActivitySuggestions {
   jobsAppliedCount: number;
   vendorReachedOutCount: number;
+  vendorResponseCount: number;
   submissionsCount: number;
   interviewCallsCount: number;
 }
@@ -13,6 +14,9 @@ export interface ConsultantVendorReachOutRow {
   id: number;
   reachedDate: string;
   vendorName: string;
+  contactPerson?: string | null;
+  contactEmail?: string | null;
+  vendorResponseNotes?: string | null;
   notes?: string | null;
 }
 
@@ -22,8 +26,12 @@ export interface ConsultantInterviewRow {
   submissionCode: string;
   jobTitle: string;
   interviewDate: string;
+  interviewEndDate?: string | null;
   interviewMode?: string | null;
+  round?: string | null;
   status: string;
+  feedback?: string | null;
+  notes?: string | null;
   hasInviteProof?: boolean;
 }
 
@@ -36,6 +44,8 @@ export interface ConsultantSubmissionRow {
   salesRecruiterName: string;
   submissionDate: string;
   status: string;
+  notes?: string | null;
+  consultantCommunication?: string | null;
   hasProof?: boolean;
 }
 
@@ -76,6 +86,10 @@ export class ConsultantApiService {
     return this.http.put(`${this.base}/daily-activities/${id}`, body);
   }
 
+  patchDailyNotes(id: number, body: { notes: string | null }) {
+    return this.http.patch<{ message: string }>(`${this.base}/daily-activities/${id}/notes`, body);
+  }
+
   jobApplications(consultantId?: number) {
     const q = consultantId != null ? `?consultantId=${consultantId}` : '';
     return this.http.get<unknown[]>(`${this.base}/job-applications${q}`);
@@ -84,6 +98,12 @@ export class ConsultantApiService {
   saveJob(body: Record<string, unknown>, consultantId?: number) {
     const q = consultantId != null ? `?consultantId=${consultantId}` : '';
     return this.http.post(`${this.base}/job-applications${q}`, body);
+  }
+
+  updateJob(id: number, body: Record<string, unknown>, consultantId?: number) {
+    let params = new HttpParams();
+    if (consultantId != null) params = params.set('consultantId', String(consultantId));
+    return this.http.put<{ message: string }>(`${this.base}/job-applications/${id}`, body, { params });
   }
 
   submissions(consultantId?: number) {
@@ -96,17 +116,60 @@ export class ConsultantApiService {
     return this.http.get<ConsultantInterviewRow[]>(`${this.base}/interviews${q}`);
   }
 
+  updateInterview(
+    id: number,
+    body: {
+      interviewDate: string;
+      interviewEndDate: string | null;
+      interviewMode: string | null;
+      round: string | null;
+      status: string;
+      feedback: string | null;
+      notes: string | null;
+    }
+  ) {
+    return this.http.put<{ message: string }>(`${this.base}/interviews/${id}`, body);
+  }
+
+  updateSubmissionCommunication(id: number, body: { consultantCommunication: string | null }) {
+    return this.http.put<{ message: string }>(`${this.base}/submissions/${id}/consultant-communication`, body);
+  }
+
   vendorReachOuts(consultantId?: number) {
     const q = consultantId != null ? `?consultantId=${consultantId}` : '';
     return this.http.get<ConsultantVendorReachOutRow[]>(`${this.base}/vendor-reach-outs${q}`);
   }
 
   createVendorReachOut(
-    body: { reachedDate: string; vendorName: string; notes?: string | null },
+    body: {
+      reachedDate: string;
+      vendorName: string;
+      contactPerson?: string | null;
+      contactEmail?: string | null;
+      vendorResponseNotes?: string | null;
+      notes?: string | null;
+    },
     consultantId?: number
   ) {
     const q = consultantId != null ? `?consultantId=${consultantId}` : '';
     return this.http.post(`${this.base}/vendor-reach-outs${q}`, body);
+  }
+
+  updateVendorReachOut(
+    id: number,
+    body: {
+      reachedDate: string;
+      vendorName: string;
+      contactPerson?: string | null;
+      contactEmail?: string | null;
+      vendorResponseNotes?: string | null;
+      notes?: string | null;
+    },
+    consultantId?: number
+  ) {
+    let params = new HttpParams();
+    if (consultantId != null) params = params.set('consultantId', String(consultantId));
+    return this.http.put<{ message: string }>(`${this.base}/vendor-reach-outs/${id}`, body, { params });
   }
 
   documents(consultantId?: number) {

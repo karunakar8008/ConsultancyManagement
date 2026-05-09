@@ -1,46 +1,118 @@
 <h2 class="page-title">Documents</h2>
 
 <mat-card class="panel">
-  <h3>All files (repository)</h3>
-  <p class="hint">Consultant uploads, vendor contact proofs, submission proofs, and interview invites — newest first. <strong>Admin</strong> and <strong>Management</strong> see the full repository. Use the eye to preview in a new tab (PDF/images) or the arrow to save the file.</p>
-  <table mat-table [dataSource]="catalog" class="full-table">
-    <ng-container matColumnDef="destination">
-      <th mat-header-cell *matHeaderCellDef>Destination / summary</th>
-      <td mat-cell *matCellDef="let r">{{ r.title }} — {{ r.subtitle }}</td>
-    </ng-container>
-    <ng-container matColumnDef="kind">
-      <th mat-header-cell *matHeaderCellDef>Type</th>
-      <td mat-cell *matCellDef="let r">{{ kindLabel(r.kind) }}</td>
-    </ng-container>
-    <ng-container matColumnDef="context">
-      <th mat-header-cell *matHeaderCellDef>People</th>
-      <td mat-cell *matCellDef="let r">
-        @if (r.consultantName) { <span>C: {{ r.consultantName }}</span> } @if (r.salesRecruiterName) { <span> · S: {{ r.salesRecruiterName }}</span> }
-        @if (r.vendorName) { <span> · V: {{ r.vendorName }}</span> }
-      </td>
-    </ng-container>
-    <ng-container matColumnDef="file">
-      <th mat-header-cell *matHeaderCellDef>File</th>
-      <td mat-cell *matCellDef="let r">{{ r.fileName }}</td>
-    </ng-container>
-    <ng-container matColumnDef="date">
-      <th mat-header-cell *matHeaderCellDef>Date</th>
-      <td mat-cell *matCellDef="let r">{{ r.at | date : 'short' }}</td>
-    </ng-container>
-    <ng-container matColumnDef="actions">
-      <th mat-header-cell *matHeaderCellDef>View / save</th>
-      <td mat-cell *matCellDef="let r">
-        @if (r.hasFile) {
-          <span class="icon-actions">
-            <button mat-icon-button type="button" color="primary" matTooltip="View in new tab" (click)="viewCatalogItem(r)"><mat-icon>visibility</mat-icon></button>
-            <button mat-icon-button type="button" matTooltip="Download" (click)="downloadCatalogItem(r)"><mat-icon>download</mat-icon></button>
-          </span>
-        } @else { — }
-      </td>
-    </ng-container>
-    <tr mat-header-row *matHeaderRowDef="catalogCols"></tr>
-    <tr mat-row *matRowDef="let row; columns: catalogCols"></tr>
-  </table>
+  <h3>All files by consultant</h3>
+  <p class="hint">Grouped by consultant name. Below each name you’ll see <strong>Documents</strong> (their files) and <strong>Sales proofs</strong> (vendor, submission, and interview attachments).</p>
+  @if (catalogGroups.length === 0) {
+    <p class="hint">No files in the catalog yet.</p>
+  }
+  <mat-accordion class="folder-accordion" multi="true">
+    @for (g of catalogGroups; track g.folder) {
+      <mat-expansion-panel [expanded]="true">
+        <mat-expansion-panel-header>
+          <mat-panel-title>{{ g.consultantName }}</mat-panel-title>
+        </mat-expansion-panel-header>
+
+        <h4 class="subfolder-heading">Documents</h4>
+        @if (g.documentItems.length === 0) {
+          <p class="hint tight">No consultant documents listed.</p>
+        } @else {
+          <table class="nested-html-table">
+            <thead>
+              <tr>
+                <th>Summary</th>
+                <th>Type</th>
+                <th>People</th>
+                <th>File</th>
+                <th>Date</th>
+                <th>View / save</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (r of g.documentItems; track catalogTrack(r)) {
+                <tr>
+                  <td>{{ r.title }} — {{ r.subtitle }}</td>
+                  <td>{{ kindLabel(r.kind) }}</td>
+                  <td>
+                    @if (r.consultantName) {
+                      <span>C: {{ r.consultantName }}</span>
+                    }
+                    @if (r.salesRecruiterName) {
+                      <span> · S: {{ r.salesRecruiterName }}</span>
+                    }
+                    @if (r.vendorName) {
+                      <span> · V: {{ r.vendorName }}</span>
+                    }
+                  </td>
+                  <td>{{ r.fileName }}</td>
+                  <td>{{ r.at | date : 'short' }}</td>
+                  <td>
+                    @if (r.hasFile) {
+                      <span class="icon-actions">
+                        <button mat-icon-button type="button" color="primary" matTooltip="View in new tab" (click)="viewCatalogItem(r)"><mat-icon>visibility</mat-icon></button>
+                        <button mat-icon-button type="button" matTooltip="Download" (click)="downloadCatalogItem(r)"><mat-icon>download</mat-icon></button>
+                      </span>
+                    } @else {
+                      —
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+
+        <h4 class="subfolder-heading">Sales proofs</h4>
+        @if (g.proofItems.length === 0) {
+          <p class="hint tight">None.</p>
+        } @else {
+          <table class="nested-html-table">
+            <thead>
+              <tr>
+                <th>Summary</th>
+                <th>Type</th>
+                <th>People</th>
+                <th>File</th>
+                <th>Date</th>
+                <th>View / save</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (r of g.proofItems; track catalogTrack(r)) {
+                <tr>
+                  <td>{{ r.title }} — {{ r.subtitle }}</td>
+                  <td>{{ kindLabel(r.kind) }}</td>
+                  <td>
+                    @if (r.consultantName) {
+                      <span>C: {{ r.consultantName }}</span>
+                    }
+                    @if (r.salesRecruiterName) {
+                      <span> · S: {{ r.salesRecruiterName }}</span>
+                    }
+                    @if (r.vendorName) {
+                      <span> · V: {{ r.vendorName }}</span>
+                    }
+                  </td>
+                  <td>{{ r.fileName }}</td>
+                  <td>{{ r.at | date : 'short' }}</td>
+                  <td>
+                    @if (r.hasFile) {
+                      <span class="icon-actions">
+                        <button mat-icon-button type="button" color="primary" matTooltip="View in new tab" (click)="viewCatalogItem(r)"><mat-icon>visibility</mat-icon></button>
+                        <button mat-icon-button type="button" matTooltip="Download" (click)="downloadCatalogItem(r)"><mat-icon>download</mat-icon></button>
+                      </span>
+                    } @else {
+                      —
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      </mat-expansion-panel>
+    }
+  </mat-accordion>
 </mat-card>
 
 <mat-card class="panel">
@@ -76,30 +148,81 @@
 
 <mat-card class="panel">
   <h3>Review queue</h3>
+  <p class="hint">Choose a document, set status (Approved, Rejected, or Re-check), then update. After an admin decision, only admins can change review.</p>
+  @if (showLockedByAdminHint()) {
+    <p class="hint">This document is locked after an admin decision. Sign in as admin to update.</p>
+  }
   <form [formGroup]="reviewForm" (ngSubmit)="review()" class="grid-form">
-    <mat-form-field appearance="outline"><mat-label>Document Id</mat-label><input matInput type="number" formControlName="id" /></mat-form-field>
-    <mat-form-field appearance="outline"><mat-label>Status</mat-label><input matInput formControlName="status" /></mat-form-field>
-    <button mat-stroked-button type="submit">Update review</button>
+    <mat-form-field appearance="outline" class="wide">
+      <mat-label>Document</mat-label>
+      <mat-select formControlName="id">
+        <mat-option [value]="0">Select document…</mat-option>
+        @for (opt of reviewDocumentOptions; track opt.id) {
+          <mat-option [value]="opt.id">{{ opt.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline" class="wide">
+      <mat-label>Status</mat-label>
+      <mat-select formControlName="status">
+        @for (s of reviewStatuses; track s) {
+          <mat-option [value]="s">{{ s }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <button mat-stroked-button type="submit" [disabled]="reviewSubmitDisabled()">Update review</button>
   </form>
 </mat-card>
 
 <mat-card class="panel">
-  <table mat-table [dataSource]="rows" class="full-table">
-    <ng-container matColumnDef="consultant"><th mat-header-cell *matHeaderCellDef>Consultant</th><td mat-cell *matCellDef="let r">{{ r['consultantName'] }}</td></ng-container>
-    <ng-container matColumnDef="type"><th mat-header-cell *matHeaderCellDef>Type</th><td mat-cell *matCellDef="let r">{{ r['documentType'] }}</td></ng-container>
-    <ng-container matColumnDef="file"><th mat-header-cell *matHeaderCellDef>File</th><td mat-cell *matCellDef="let r">{{ r['fileName'] }}</td></ng-container>
-    <ng-container matColumnDef="uploaded"><th mat-header-cell *matHeaderCellDef>Uploaded</th><td mat-cell *matCellDef="let r">{{ r['uploadedAt'] | date }}</td></ng-container>
-    <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef>Status</th><td mat-cell *matCellDef="let r">{{ r['status'] }}</td></ng-container>
-    <ng-container matColumnDef="fileActions">
-      <th mat-header-cell *matHeaderCellDef>View / save</th>
-      <td mat-cell *matCellDef="let r">
-        <span class="icon-actions">
-          <button mat-icon-button type="button" color="primary" matTooltip="View in new tab" (click)="viewQueueDoc(r)"><mat-icon>visibility</mat-icon></button>
-          <button mat-icon-button type="button" matTooltip="Download" (click)="downloadQueueDoc(r)"><mat-icon>download</mat-icon></button>
-        </span>
-      </td>
-    </ng-container>
-    <tr mat-header-row *matHeaderRowDef="cols"></tr>
-    <tr mat-row *matRowDef="let row; columns: cols"></tr>
-  </table>
+  <h3>Review queue by consultant</h3>
+  <p class="hint">Consultant documents awaiting review (same records as in management workflows).</p>
+  @if (reviewGroups.length === 0) {
+    <p class="hint">Nothing in the queue.</p>
+  }
+  <mat-accordion class="folder-accordion" multi="true">
+    @for (g of reviewGroups; track g.consultantId) {
+      <mat-expansion-panel [expanded]="true">
+        <mat-expansion-panel-header>
+          <mat-panel-title>{{ g.consultantName }}</mat-panel-title>
+        </mat-expansion-panel-header>
+        <table class="nested-html-table">
+          <thead>
+            <tr>
+              <th>Consultant</th>
+              <th>Type</th>
+              <th>File</th>
+              <th>Uploaded</th>
+              <th>Status</th>
+              <th>Review level</th>
+              <th>View / save</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of g.rows; track r['id']) {
+              <tr>
+                <td>{{ r['consultantName'] }}</td>
+                <td>{{ r['documentType'] }}</td>
+                <td>{{ r['fileName'] }}</td>
+                <td>{{ $any(r['uploadedAt']) | date }}</td>
+                <td>
+                  {{ r['status'] }}
+                  @if ($any(r['lockedAfterAdminDecision'])) {
+                    <mat-icon inline class="lock-icon" matTooltip="Admin finalized — non-admins cannot change">lock</mat-icon>
+                  }
+                </td>
+                <td>{{ r['lastReviewAuthority'] || '—' }}</td>
+                <td>
+                  <span class="icon-actions">
+                    <button mat-icon-button type="button" color="primary" matTooltip="View in new tab" (click)="viewQueueDoc(r)"><mat-icon>visibility</mat-icon></button>
+                    <button mat-icon-button type="button" matTooltip="Download" (click)="downloadQueueDoc(r)"><mat-icon>download</mat-icon></button>
+                  </span>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </mat-expansion-panel>
+    }
+  </mat-accordion>
 </mat-card>

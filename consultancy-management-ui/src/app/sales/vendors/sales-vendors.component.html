@@ -27,6 +27,10 @@
     <ng-container matColumnDef="email"><th mat-header-cell *matHeaderCellDef>Email</th><td mat-cell *matCellDef="let r">{{ r.email }}</td></ng-container>
     <ng-container matColumnDef="phone"><th mat-header-cell *matHeaderCellDef>Phone</th><td mat-cell *matCellDef="let r">{{ r.phoneNumber }}</td></ng-container>
     <ng-container matColumnDef="company"><th mat-header-cell *matHeaderCellDef>Company</th><td mat-cell *matCellDef="let r">{{ r.companyName }}</td></ng-container>
+    <ng-container matColumnDef="notes">
+      <th mat-header-cell *matHeaderCellDef>Notes</th>
+      <td mat-cell *matCellDef="let r" class="text-cell">{{ textOrDash(r.notes) }}</td>
+    </ng-container>
     <ng-container matColumnDef="proof"><th mat-header-cell *matHeaderCellDef>Proof</th><td mat-cell *matCellDef="let r">@if (r.hasContactProof) { <span class="icon-actions"><button mat-icon-button type="button" color="primary" matTooltip="View" (click)="viewProof(r)"><mat-icon>visibility</mat-icon></button><button mat-icon-button type="button" matTooltip="Download" (click)="downloadProof(r)"><mat-icon>download</mat-icon></button></span> } @else { — }</td></ng-container>
     <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef></th><td mat-cell *matCellDef="let r"><button mat-icon-button type="button" (click)="startEdit(r)" title="Edit"><mat-icon>edit</mat-icon></button></td></ng-container>
     <tr mat-header-row *matHeaderRowDef="cols"></tr>

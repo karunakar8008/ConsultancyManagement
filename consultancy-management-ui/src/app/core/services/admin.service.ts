@@ -1,7 +1,19 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { AdminUser, AdminUserDetail } from '../models/admin.models';
+
+export interface InterviewCalendarEvent {
+  id: number;
+  interviewCode: string;
+  jobTitle: string;
+  consultantName: string;
+  salesRecruiterName: string;
+  interviewDate: string;
+  interviewEndDate?: string | null;
+  interviewMode?: string | null;
+  status: string;
+}
 
 @Injectable({ providedIn: 'root' })
 export class AdminService {
@@ -78,5 +90,11 @@ export class AdminService {
   }
   updateSalesManagementAssignment(id: number, body: Record<string, unknown>) {
     return this.http.put(`${this.base}/sales-management-assignments/${id}`, body);
+  }
+
+  /** Interviews overlapping the [from, to) range (ISO UTC). */
+  interviewCalendar(fromIso: string, toIso: string) {
+    const params = new HttpParams().set('from', fromIso).set('to', toIso);
+    return this.http.get<InterviewCalendarEvent[]>(`${this.base}/interview-calendar`, { params });
   }
 }

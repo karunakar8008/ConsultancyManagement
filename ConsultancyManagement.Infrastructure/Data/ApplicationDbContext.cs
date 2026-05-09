@@ -23,6 +23,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<Document> Documents => Set<Document>();
     public DbSet<ConsultantVendorReachOut> ConsultantVendorReachOuts => Set<ConsultantVendorReachOut>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -115,6 +116,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 .WithMany(s => s.Vendors)
                 .HasForeignKey(x => x.SalesRecruiterId)
                 .OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.LinkedConsultant)
+                .WithMany()
+                .HasForeignKey(x => x.LinkedConsultantId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<ConsultantVendorReachOut>(e =>
@@ -168,6 +173,12 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
         modelBuilder.Entity<AuditLog>(e =>
         {
             e.HasIndex(x => x.CreatedAt);
+        });
+
+        modelBuilder.Entity<UserNotification>(e =>
+        {
+            e.HasIndex(x => x.RecipientUserId);
+            e.HasIndex(x => new { x.RecipientUserId, x.ReadAt });
         });
     }
 }
