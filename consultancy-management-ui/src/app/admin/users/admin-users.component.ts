@@ -148,7 +148,14 @@ export class AdminUsersComponent implements OnInit {
     this.refreshNextEmployeeId(this.form.controls.role.value);
   }
 
+  /** Tenant/org admins and platform operators cannot be removed from this screen. */
+  canDeleteUser(user: AdminUser): boolean {
+    const blocked = new Set(['Admin', 'PlatformAdmin']);
+    return !user.roles.some((r) => blocked.has(r));
+  }
+
   deleteUser(user: AdminUser): void {
+    if (!this.canDeleteUser(user)) return;
     if (!user.id) {
       this.toast.error('Missing employee id');
       return;

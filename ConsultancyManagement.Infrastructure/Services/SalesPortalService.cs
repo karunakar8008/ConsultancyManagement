@@ -13,18 +13,20 @@ public class SalesPortalService : ISalesPortalService
 {
     private readonly ApplicationDbContext _db;
     private readonly IHostEnvironment _env;
+    private readonly int _orgId;
 
-    public SalesPortalService(ApplicationDbContext db, IHostEnvironment env)
+    public SalesPortalService(ApplicationDbContext db, IHostEnvironment env, ICurrentOrganization tenant)
     {
         _db = db;
         _env = env;
+        _orgId = tenant.OrganizationId;
     }
 
     private async Task<int?> GetSalesRecruiterIdAsync(string? userId)
     {
         if (userId is null) return null;
         return await _db.SalesRecruiters.AsNoTracking()
-            .Where(s => s.UserId == userId)
+            .Where(s => s.UserId == userId && s.OrganizationId == _orgId)
             .Select(s => (int?)s.Id)
             .FirstOrDefaultAsync();
     }
@@ -69,13 +71,18 @@ public class SalesPortalService : ISalesPortalService
             };
         }
 
-        var vendorsAllToday = await _db.Vendors.CountAsync(v => v.CreatedAt >= today && v.CreatedAt < tomorrow);
+        var vendorsAllToday = await _db.Vendors.CountAsync(v =>
+            v.OrganizationId == _orgId && v.CreatedAt >= today && v.CreatedAt < tomorrow);
         return new SalesDashboardDto
         {
-            AssignedConsultants = await _db.ConsultantSalesAssignments.CountAsync(a => a.IsActive),
+            AssignedConsultants = await _db.ConsultantSalesAssignments.CountAsync(a =>
+                a.IsActive && a.Consultant.OrganizationId == _orgId),
             VendorsContactedToday = vendorsAllToday,
-            SubmissionsToday = await _db.Submissions.CountAsync(s => s.SubmissionDate >= today && s.SubmissionDate < tomorrow),
-            InterviewsScheduled = await _db.Interviews.CountAsync(i => i.InterviewDate >= today && i.InterviewDate < tomorrow)
+            SubmissionsToday = await _db.Submissions.CountAsync(s =>
+                s.SubmissionDate >= today && s.SubmissionDate < tomorrow && s.Consultant.OrganizationId == _orgId),
+            InterviewsScheduled = await _db.Interviews.CountAsync(i =>
+                i.InterviewDate >= today && i.InterviewDate < tomorrow &&
+                i.Submission.Consultant.OrganizationId == _orgId)
         };
     }
 
@@ -87,7 +94,7 @@ public class SalesPortalService : ISalesPortalService
 
         var q = from a in _db.ConsultantSalesAssignments.AsNoTracking()
             join c in _db.Consultants.AsNoTracking() on a.ConsultantId equals c.Id
-            where a.IsActive && (isElevated || a.SalesRecruiterId == salesId)
+            where c.OrganizationId == _orgId && a.IsActive && (isElevated || a.SalesRecruiterId == salesId)
             select new AssignedConsultantDto
             {
                 Id = c.Id,
@@ -121,12 +128,21 @@ public class SalesPortalService : ISalesPortalService
         if (!isElevated && !salesId.HasValue) return (false, "Sales recruiter not found.", null);
 
         int? ownerSalesId = isElevated ? null : salesId;
+        int vendorOrgId = _orgId;
+        if (ownerSalesId.HasValue)
+        {
+            vendorOrgId = await _db.SalesRecruiters.AsNoTracking()
+                .Where(s => s.Id == ownerSalesId.Value)
+                .Select(s => s.OrganizationId)
+                .FirstAsync();
+        }
+
         var code = NewVendorCode();
-        while (await _db.Vendors.AnyAsync(v => v.VendorCode == code))
+        while (await _db.Vendors.AnyAsync(v => v.OrganizationId == vendorOrgId && v.VendorCode == code))
             code = NewVendorCode();
 
         if (dto.LinkedConsultantId.HasValue &&
-            !await _db.Consultants.AnyAsync(c => c.Id == dto.LinkedConsultantId.Value))
+            !await _db.Consultants.AnyAsync(c => c.Id == dto.LinkedConsultantId.Value && c.OrganizationId == _orgId))
             return (false, "Consultant not found.", null);
         if (!isElevated && salesId.HasValue && dto.LinkedConsultantId.HasValue
             && !await IsAssignedAsync(salesId.Value, dto.LinkedConsultantId.Value))
@@ -134,6 +150,7 @@ public class SalesPortalService : ISalesPortalService
 
         var v = new Vendor
         {
+            OrganizationId = vendorOrgId,
             VendorCode = code,
             SalesRecruiterId = ownerSalesId,
             VendorName = dto.VendorName.Trim(),
@@ -157,7 +174,7 @@ public class SalesPortalService : ISalesPortalService
         var userId = UserContextHelper.GetUserId(user);
         var salesId = await GetSalesRecruiterIdAsync(userId);
 
-        var q = _db.Vendors.AsNoTracking().AsQueryable();
+        var q = _db.Vendors.AsNoTracking().AsQueryable().Where(v => v.OrganizationId == _orgId);
         if (!isElevated && salesId.HasValue)
             q = q.Where(v => v.SalesRecruiterId == salesId);
         else if (!isElevated)
@@ -194,6 +211,7 @@ public class SalesPortalService : ISalesPortalService
         var salesId = await GetSalesRecruiterIdAsync(userId);
         var v = await _db.Vendors.FirstOrDefaultAsync(x => x.Id == id);
         if (v is null) return (false, "Vendor not found.");
+        if (v.OrganizationId != _orgId) return (false, "Forbidden.");
         if (!isElevated && (!salesId.HasValue || v.SalesRecruiterId != salesId)) return (false, "Forbidden.");
 
         v.VendorName = dto.VendorName.Trim();
@@ -205,7 +223,7 @@ public class SalesPortalService : ISalesPortalService
         v.Notes = dto.Notes;
         if (dto.LinkedConsultantId.HasValue)
         {
-            if (!await _db.Consultants.AnyAsync(c => c.Id == dto.LinkedConsultantId.Value))
+            if (!await _db.Consultants.AnyAsync(c => c.Id == dto.LinkedConsultantId.Value && c.OrganizationId == _orgId))
                 return (false, "Consultant not found.");
             if (!isElevated && salesId.HasValue
                 && !await IsAssignedAsync(salesId.Value, dto.LinkedConsultantId.Value))
@@ -225,9 +243,9 @@ public class SalesPortalService : ISalesPortalService
         if (string.IsNullOrWhiteSpace(dto.ProofFilePath))
             return (false, "Submission proof file is required.", null);
 
-        if (!await _db.Consultants.AnyAsync(c => c.Id == dto.ConsultantId))
+        if (!await _db.Consultants.AnyAsync(c => c.Id == dto.ConsultantId && c.OrganizationId == _orgId))
             return (false, "Consultant is required.", null);
-        var vendor = await _db.Vendors.FirstOrDefaultAsync(v => v.Id == dto.VendorId);
+        var vendor = await _db.Vendors.FirstOrDefaultAsync(v => v.Id == dto.VendorId && v.OrganizationId == _orgId);
         if (vendor is null) return (false, "Vendor is required.", null);
 
         var userId = UserContextHelper.GetUserId(user);
@@ -237,7 +255,9 @@ public class SalesPortalService : ISalesPortalService
         if (isElevated)
         {
             var assignment = await _db.ConsultantSalesAssignments.AsNoTracking()
-                .FirstOrDefaultAsync(a => a.ConsultantId == dto.ConsultantId && a.IsActive);
+                .FirstOrDefaultAsync(a =>
+                    a.ConsultantId == dto.ConsultantId && a.IsActive &&
+                    a.Consultant.OrganizationId == _orgId);
             if (assignment is null)
                 return (false, "Submission requires an active consultant–sales assignment.", null);
             salesRecruiterId = assignment.SalesRecruiterId;
@@ -283,7 +303,7 @@ public class SalesPortalService : ISalesPortalService
         if (!isElevated && !salesId.HasValue) return Array.Empty<SalesSubmissionDto>();
 
         return await _db.Submissions.AsNoTracking()
-            .Where(s => isElevated || s.SalesRecruiterId == salesId)
+            .Where(s => s.Consultant.OrganizationId == _orgId && (isElevated || s.SalesRecruiterId == salesId))
             .OrderByDescending(s => s.SubmissionDate)
             .Select(s => new SalesSubmissionDto
             {
@@ -310,7 +330,7 @@ public class SalesPortalService : ISalesPortalService
         if (!isElevated && !salesId.HasValue) return Array.Empty<SalesSubmissionOptionDto>();
 
         return await _db.Submissions.AsNoTracking()
-            .Where(s => isElevated || s.SalesRecruiterId == salesId)
+            .Where(s => s.Consultant.OrganizationId == _orgId && (isElevated || s.SalesRecruiterId == salesId))
             .OrderByDescending(s => s.SubmissionDate)
             .Select(s => new SalesSubmissionOptionDto
             {
@@ -332,11 +352,12 @@ public class SalesPortalService : ISalesPortalService
     {
         var userId = UserContextHelper.GetUserId(user);
         var salesId = await GetSalesRecruiterIdAsync(userId);
-        var s = await _db.Submissions.FirstOrDefaultAsync(x => x.Id == id);
+        var s = await _db.Submissions.Include(x => x.Consultant).FirstOrDefaultAsync(x => x.Id == id);
         if (s is null) return (false, "Submission not found.");
+        if (s.Consultant.OrganizationId != _orgId) return (false, "Forbidden.");
         if (!isElevated && s.SalesRecruiterId != salesId) return (false, "Forbidden.");
 
-        var vendor = await _db.Vendors.FirstOrDefaultAsync(v => v.Id == dto.VendorId);
+        var vendor = await _db.Vendors.FirstOrDefaultAsync(v => v.Id == dto.VendorId && v.OrganizationId == _orgId);
         if (vendor is null) return (false, "Vendor is required.");
 
         if (!isElevated && (!salesId.HasValue || vendor.SalesRecruiterId != salesId))
@@ -344,6 +365,8 @@ public class SalesPortalService : ISalesPortalService
 
         if (!isElevated && !await IsAssignedAsync(salesId!.Value, dto.ConsultantId))
             return (false, "Sales recruiter can only submit assigned consultants.");
+        if (!await _db.Consultants.AnyAsync(c => c.Id == dto.ConsultantId && c.OrganizationId == _orgId))
+            return (false, "Consultant is required.");
 
         var proof = string.IsNullOrWhiteSpace(dto.ProofFilePath) ? s.ProofFilePath : dto.ProofFilePath;
         if (string.IsNullOrWhiteSpace(proof))
@@ -369,8 +392,9 @@ public class SalesPortalService : ISalesPortalService
         if (string.IsNullOrWhiteSpace(dto.InviteProofFilePath))
             return (false, "Interview invite proof file is required.", null);
 
-        var sub = await _db.Submissions.FirstOrDefaultAsync(s => s.Id == dto.SubmissionId);
+        var sub = await _db.Submissions.Include(s => s.Consultant).FirstOrDefaultAsync(s => s.Id == dto.SubmissionId);
         if (sub is null) return (false, "Submission not found.", null);
+        if (sub.Consultant.OrganizationId != _orgId) return (false, "Forbidden.", null);
 
         var userId = UserContextHelper.GetUserId(user);
         var salesId = await GetSalesRecruiterIdAsync(userId);
@@ -409,7 +433,8 @@ public class SalesPortalService : ISalesPortalService
         if (!isElevated && !salesId.HasValue) return Array.Empty<InterviewDto>();
 
         return await _db.Interviews.AsNoTracking()
-            .Where(i => isElevated || i.Submission.SalesRecruiterId == salesId)
+            .Where(i => i.Submission.Consultant.OrganizationId == _orgId &&
+                (isElevated || i.Submission.SalesRecruiterId == salesId))
             .OrderByDescending(i => i.InterviewDate)
             .Select(i => new InterviewDto
             {
@@ -435,12 +460,14 @@ public class SalesPortalService : ISalesPortalService
     {
         var userId = UserContextHelper.GetUserId(user);
         var salesId = await GetSalesRecruiterIdAsync(userId);
-        var i = await _db.Interviews.Include(x => x.Submission).FirstOrDefaultAsync(x => x.Id == id);
+        var i = await _db.Interviews.Include(x => x.Submission).ThenInclude(s => s.Consultant).FirstOrDefaultAsync(x => x.Id == id);
         if (i is null) return (false, "Interview not found.");
+        if (i.Submission.Consultant.OrganizationId != _orgId) return (false, "Forbidden.");
         if (!isElevated && i.Submission.SalesRecruiterId != salesId) return (false, "Forbidden.");
 
-        var sub = await _db.Submissions.FirstOrDefaultAsync(s => s.Id == dto.SubmissionId);
+        var sub = await _db.Submissions.Include(s => s.Consultant).FirstOrDefaultAsync(s => s.Id == dto.SubmissionId);
         if (sub is null) return (false, "Submission not found.");
+        if (sub.Consultant.OrganizationId != _orgId) return (false, "Forbidden.");
         if (!isElevated && sub.SalesRecruiterId != salesId) return (false, "Forbidden.");
 
         if (dto.InterviewEndDate.HasValue && dto.InterviewEndDate.Value < dto.InterviewDate)
@@ -477,6 +504,7 @@ public class SalesPortalService : ISalesPortalService
             case "vendor":
                 var v = await _db.Vendors.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
                 if (v is null) return (false, "Vendor not found.", null, string.Empty);
+                if (v.OrganizationId != _orgId) return (false, "Forbidden.", null, string.Empty);
                 if (!isElevated)
                 {
                     if (!salesId.HasValue || v.SalesRecruiterId != salesId)
@@ -487,15 +515,22 @@ public class SalesPortalService : ISalesPortalService
                 preferredName = $"{v.VendorCode}-contact{Path.GetExtension(rel ?? "")}";
                 break;
             case "submission":
-                var s = await _db.Submissions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
+                var s = await _db.Submissions.AsNoTracking()
+                    .Include(x => x.Consultant)
+                    .FirstOrDefaultAsync(x => x.Id == id);
                 if (s is null) return (false, "Submission not found.", null, string.Empty);
+                if (s.Consultant.OrganizationId != _orgId) return (false, "Forbidden.", null, string.Empty);
                 if (!isElevated && s.SalesRecruiterId != salesId) return (false, "Forbidden.", null, string.Empty);
                 rel = s.ProofFilePath;
                 preferredName = $"{s.SubmissionCode}-proof{Path.GetExtension(rel ?? "")}";
                 break;
             case "interview":
-                var i = await _db.Interviews.AsNoTracking().Include(x => x.Submission).FirstOrDefaultAsync(x => x.Id == id);
+                var i = await _db.Interviews.AsNoTracking()
+                    .Include(x => x.Submission)
+                    .ThenInclude(s => s.Consultant)
+                    .FirstOrDefaultAsync(x => x.Id == id);
                 if (i is null) return (false, "Interview not found.", null, string.Empty);
+                if (i.Submission.Consultant.OrganizationId != _orgId) return (false, "Forbidden.", null, string.Empty);
                 if (!isElevated && i.Submission.SalesRecruiterId != salesId) return (false, "Forbidden.", null, string.Empty);
                 rel = i.InviteProofFilePath;
                 preferredName = $"{i.InterviewCode}-invite{Path.GetExtension(rel ?? "")}";

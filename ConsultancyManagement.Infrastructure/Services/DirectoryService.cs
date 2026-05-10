@@ -28,9 +28,11 @@ public class DirectoryService : IDirectoryService
         var me = await _userManager.FindByIdAsync(userId);
         if (me is null) return Array.Empty<DirectoryUserEntryDto>();
 
+        var orgId = me.OrganizationId;
+
         if (principal.IsInRole(nameof(UserRole.Admin)))
             return await MapUsersAsync(await _userManager.Users.AsNoTracking()
-                .Where(u => !u.IsDeleted)
+                .Where(u => !u.IsDeleted && u.OrganizationId == orgId)
                 .OrderBy(u => u.EmployeeId)
                 .Select(u => u.Id)
                 .ToListAsync());
@@ -38,11 +40,11 @@ public class DirectoryService : IDirectoryService
         if (principal.IsInRole(nameof(UserRole.Management)))
         {
             var ids = new HashSet<string>();
-            foreach (var id in await _db.Consultants.AsNoTracking().Select(c => c.UserId).ToListAsync())
+            foreach (var id in await _db.Consultants.AsNoTracking().Where(c => c.OrganizationId == orgId).Select(c => c.UserId).ToListAsync())
                 ids.Add(id);
-            foreach (var id in await _db.SalesRecruiters.AsNoTracking().Select(s => s.UserId).ToListAsync())
+            foreach (var id in await _db.SalesRecruiters.AsNoTracking().Where(s => s.OrganizationId == orgId).Select(s => s.UserId).ToListAsync())
                 ids.Add(id);
-            foreach (var id in await _db.ManagementUsers.AsNoTracking().Select(m => m.UserId).ToListAsync())
+            foreach (var id in await _db.ManagementUsers.AsNoTracking().Where(m => m.OrganizationId == orgId).Select(m => m.UserId).ToListAsync())
                 ids.Add(id);
             return await MapUsersAsync(ids.OrderBy(x => x).ToList());
         }
@@ -50,7 +52,8 @@ public class DirectoryService : IDirectoryService
         if (principal.IsInRole(nameof(UserRole.SalesRecruiter)))
         {
             var ids = new HashSet<string> { userId };
-            var sales = await _db.SalesRecruiters.AsNoTracking().FirstOrDefaultAsync(s => s.UserId == userId);
+            var sales = await _db.SalesRecruiters.AsNoTracking()
+                .FirstOrDefaultAsync(s => s.UserId == userId && s.OrganizationId == orgId);
             if (sales is not null)
             {
                 var consultantUserIds = await _db.ConsultantSalesAssignments.AsNoTracking()

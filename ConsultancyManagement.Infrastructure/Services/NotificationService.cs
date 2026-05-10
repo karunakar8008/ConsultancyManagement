@@ -117,8 +117,14 @@ public class NotificationService : INotificationService
     private async Task<HashSet<string>> CollectStaffAndSalesRecipientIdsAsync(int consultantId)
     {
         var ids = new HashSet<string>(StringComparer.Ordinal);
+        var orgId = await _db.Consultants.AsNoTracking()
+            .Where(c => c.Id == consultantId)
+            .Select(c => (int?)c.OrganizationId)
+            .FirstOrDefaultAsync();
+        if (!orgId.HasValue) return ids;
 
         var mgmtIds = await _db.ManagementUsers.AsNoTracking()
+            .Where(m => m.OrganizationId == orgId.Value)
             .Select(m => m.UserId)
             .ToListAsync();
         foreach (var id in mgmtIds)
@@ -126,7 +132,7 @@ public class NotificationService : INotificationService
 
         var admins = await _userManager.GetUsersInRoleAsync(UserRole.Admin.ToString());
         foreach (var u in admins)
-            if (!u.IsDeleted)
+            if (!u.IsDeleted && u.OrganizationId == orgId.Value)
                 ids.Add(u.Id);
 
         var salesUserIds = await _db.ConsultantSalesAssignments.AsNoTracking()

@@ -7,6 +7,6 @@ public class SmtpSettings
     public string Username { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
     public string FromEmail { get; set; } = string.Empty;
-    public string FromName { get; set; } = "Consultancy Management";
+    public string FromName { get; set; } = "ConsultancyManagement Solutions";
     public bool EnableSsl { get; set; } = true;
 }

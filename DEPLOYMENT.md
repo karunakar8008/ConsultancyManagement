@@ -2,6 +2,69 @@
 
 This document prepares the current app for production deployment without changing business logic.
 
+**End-to-end AWS walkthrough (RDS, SES, EC2, CloudFront, DNS):** see **[AWS_DEPLOYMENT_GUIDE.md](./AWS_DEPLOYMENT_GUIDE.md)**.
+
+## 0) New server from scratch (Docker — API + Angular + PostgreSQL)
+
+Use this on a fresh Linux VM with Docker Engine + Compose v2 installed.
+
+1. Clone the repo and create env file:
+
+```bash
+git clone <your-repo-url> ConsultancyManagement && cd ConsultancyManagement
+cp .env.deploy.example .env
+nano .env   # set POSTGRES_PASSWORD, Jwt__Key (≥32 chars), Cors__AllowedOrigins__0, SMTP
+```
+
+2. **CORS:** `Cors__AllowedOrigins__0` must match how users open the SPA (scheme + host + port), e.g. `https://app.example.com` or `http://203.0.113.10` while testing without DNS/TLS.
+
+3. Start everything:
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env up -d --build
+# or: ./scripts/deploy-docker-prod.sh
+```
+
+4. Verify:
+
+```bash
+curl -s http://127.0.0.1/health
+docker compose -f docker-compose.prod.yml logs -f consultancy-api
+```
+
+What runs:
+
+| Piece | Notes |
+| --- | --- |
+| **postgres** | Data in Docker volume `postgres_data` — back this up for production. |
+| **consultancy-api** | ASP.NET on port **8000** inside the network only; uploads under volume `api_uploads`. |
+| **web** | Nginx serves the Angular build and proxies **`/api`** and **`/health`** to the API. SPA uses **`apiBaseUrl: '/api'`** (`production-docker` Angular config). |
+
+TLS: terminate HTTPS on the host (recommended) or put **Nginx/Caddy/Traefik** in front of port 80 with Let’s Encrypt; keep **`DISABLE_HTTPS_REDIRECTION=true`** on the API container when TLS is handled by the proxy.
+
+### AWS: logins, JWT, forgot-password, and SMTP
+
+For **login** and **reset password** to work end-to-end on AWS (EC2/ECS + RDS + CloudFront or ALB):
+
+| Requirement | Why |
+| --- | --- |
+| **`Cors__AllowedOrigins__*`** | Must list the **exact** browser origins users use (e.g. `https://app.example.com`, `https://www.example.com`). Include **HTTPS** and omit trailing slashes. |
+| **`Jwt__Key`** (≥32 chars, random) | Issued tokens fail validation if missing or rotated without redeploying both API instances with the same key. |
+| **`PasswordReset__PublicResetUrlBase`** | Set to **`https://<your-spa-host>/reset-password`** so emails contain correct links when users might open the site via IP, `http`, or a non-canonical host. Without this, the link uses `window.location.origin` from the browser at request time. |
+| **SMTP** | Password reset sends mail via **`Smtp__*`** env vars. On AWS, **Amazon SES** SMTP (`email-smtp.<region>.amazonaws.com`, port **587**) is typical: create SMTP credentials in SES, verify **sender domain/email**, allow **outbound TCP 587** from the API security group. **SES sandbox** only delivers to verified addresses until you move to production access in SES. |
+| **HTTPS** | Serve the SPA over **HTTPS** (CloudFront + ACM). Mixed content (HTTPS page calling `http://` API) will be blocked by browsers — use **`https://…/api`** (split hosting) or same-origin **`/api`** (Docker/nginx stack). |
+| **Angular routing on S3/CloudFront** | Configure **403/404 → `/index.html`** so `/reset-password` loads the SPA. |
+
+**Smoke tests after deploy**
+
+1. `GET https://api.<your-domain>/health` → `database: up`
+2. Login from the **same URL** users will use in production (organization slug + seeded or known user).
+3. Forgot password → receive mail → link opens **`/reset-password?...`** on HTTPS → submit new password → login again.
+
+**External RDS instead of container Postgres:** omit the `postgres` service (use a custom compose override or run only `consultancy-api` + `web`) and set **`DATABASE_URL`** to your RDS connection string (SSL Mode `Require`). Apply the same **`Jwt__*`** and **`Cors__*`** variables.
+
+**Split hosting (S3 + CloudFront + API subdomain):** build the SPA with `ng build --configuration production` and set **`environment.prod.ts`** `apiBaseUrl` to `https://api.yourdomain.com/api`. Use **`ConsultancyManagement.Api/.env`** / Compose API-only patterns from the sections below.
+
 ## 1) Project structure review
 
 - Frontend (Angular): `consultancy-management-ui/`

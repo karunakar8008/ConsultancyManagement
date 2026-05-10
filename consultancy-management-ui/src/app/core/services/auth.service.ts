@@ -6,27 +6,34 @@ import { environment } from '../../../environments/environment';
 import { CurrentUser, LoginRequest, LoginResponse } from '../models/auth.models';
 
 const TOKEN_KEY = 'cms_jwt';
+const ORG_SLUG_KEY = 'cms_org_slug';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
 
-  login(email: string, password: string) {
-    const body: LoginRequest = { email, password };
+  login(organizationSlug: string, email: string, password: string) {
+    const body: LoginRequest = {
+      organizationSlug: organizationSlug.trim(),
+      email,
+      password
+    };
     return this.http.post<LoginResponse>(`${environment.apiBaseUrl}/auth/login`, body);
   }
 
-  forgotPassword(email: string) {
+  forgotPassword(organizationSlug: string, email: string) {
     const resetUrlBase = `${window.location.origin}/reset-password`;
     return this.http.post<{ message: string }>(`${environment.apiBaseUrl}/auth/forgot-password`, {
+      organizationSlug: organizationSlug.trim(),
       email,
       resetUrlBase
     });
   }
 
-  resetPassword(email: string, token: string, newPassword: string) {
+  resetPassword(organizationSlug: string, email: string, token: string, newPassword: string) {
     return this.http.post<{ message: string }>(`${environment.apiBaseUrl}/auth/reset-password`, {
+      organizationSlug: organizationSlug.trim(),
       email,
       token,
       newPassword
@@ -35,7 +42,21 @@ export class AuthService {
 
   logout(): void {
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(ORG_SLUG_KEY);
     this.router.navigate(['/login']);
+  }
+
+  saveSession(token: string, organizationSlug: string): void {
+    localStorage.setItem(TOKEN_KEY, token);
+    localStorage.setItem(ORG_SLUG_KEY, organizationSlug);
+  }
+
+  getSavedOrganizationSlug(): string {
+    return (
+      localStorage.getItem(ORG_SLUG_KEY)?.trim() ||
+      environment.defaultOrganizationSlug ||
+      'default'
+    );
   }
 
   saveToken(token: string): void {
@@ -99,11 +120,17 @@ export class AuthService {
       employeeId: String(p['employee_id'] ?? ''),
       email: String(p['email'] ?? ''),
       fullName: String(p['name'] ?? p['unique_name'] ?? ''),
-      roles: this.getRoles()
+      roles: this.getRoles(),
+      organizationId: String(p['organization_id'] ?? ''),
+      organizationSlug: this.getSavedOrganizationSlug()
     };
   }
 
   redirectByRole(): void {
+    if (this.hasRole('PlatformAdmin')) {
+      this.router.navigate(['/platform/tenants']);
+      return;
+    }
     if (this.hasRole('Admin')) {
       this.router.navigate(['/admin/dashboard']);
       return;

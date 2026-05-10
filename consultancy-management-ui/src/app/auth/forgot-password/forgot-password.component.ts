@@ -8,6 +8,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { AuthService } from '../../core/services/auth.service';
 import { BrandBannerComponent } from '../../shared/brand-banner/brand-banner.component';
+import { environment } from '../../../environments/environment';
 import { ToastrService } from 'ngx-toastr';
 import { finalize } from 'rxjs';
 
@@ -36,6 +37,10 @@ export class ForgotPasswordComponent {
   sent = false;
 
   form = this.fb.nonNullable.group({
+    organizationSlug: [
+      environment.defaultOrganizationSlug ?? 'default',
+      [Validators.required, Validators.pattern(/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/)]
+    ],
     email: ['', [Validators.required, Validators.email]]
   });
 
@@ -46,7 +51,10 @@ export class ForgotPasswordComponent {
     }
     this.loading = true;
     this.auth
-      .forgotPassword(this.form.controls.email.value.trim())
+      .forgotPassword(
+        this.form.controls.organizationSlug.value.trim(),
+        this.form.controls.email.value.trim()
+      )
       .pipe(finalize(() => (this.loading = false)))
       .subscribe({
         next: () => {

@@ -4,6 +4,9 @@ namespace ConsultancyManagement.Core.Entities;
 
 public class ApplicationUser : IdentityUser
 {
+    public int OrganizationId { get; set; }
+    public Organization Organization { get; set; } = null!;
+
     public string EmployeeId { get; set; } = string.Empty;
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;

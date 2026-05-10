@@ -1,4 +1,5 @@
 export interface LoginRequest {
+  organizationSlug: string;
   email: string;
   password: string;
 }
@@ -11,6 +12,9 @@ export interface LoginResponse {
   email: string;
   fullName: string;
   roles: string[];
+  organizationId: number;
+  organizationSlug: string;
+  organizationName: string;
 }
 
 export interface CurrentUser {
@@ -19,4 +23,6 @@ export interface CurrentUser {
   email: string;
   fullName: string;
   roles: string[];
+  organizationId: string;
+  organizationSlug: string;
 }

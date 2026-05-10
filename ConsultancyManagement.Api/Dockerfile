@@ -11,6 +11,8 @@ RUN dotnet publish ConsultancyManagement.Api/ConsultancyManagement.Api.csproj -c
 
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 WORKDIR /app
+# PORT is read by Program.cs (Elastic Beanstalk / some ALB targets); keep in sync with ASPNETCORE_URLS
+ENV PORT=8000
 ENV ASPNETCORE_URLS=http://0.0.0.0:8000
 ENV ASPNETCORE_ENVIRONMENT=Production
 EXPOSE 8000

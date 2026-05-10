@@ -3,6 +3,8 @@ namespace ConsultancyManagement.Core.Entities;
 public class ManagementUser
 {
     public int Id { get; set; }
+    public int OrganizationId { get; set; }
+    public Organization Organization { get; set; } = null!;
     public string UserId { get; set; } = string.Empty;
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;

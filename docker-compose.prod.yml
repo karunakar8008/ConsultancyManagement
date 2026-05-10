@@ -1,0 +1,57 @@
+# Production stack: PostgreSQL + ASP.NET API + Nginx (Angular static + /api proxy).
+# Fresh server: copy .env.deploy.example -> .env, fill secrets, then:
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Public URL must match Cors__AllowedOrigins__* (e.g. https://app.example.com or http://YOUR_IP for testing).
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: consultancy
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: consultancy
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U consultancy -d consultancy"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  consultancy-api:
+    build:
+      context: .
+      dockerfile: ConsultancyManagement.Api/Dockerfile
+    container_name: consultancy-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      PORT: "8000"
+      DISABLE_HTTPS_REDIRECTION: "true"
+      DATABASE_URL: Host=postgres;Port=5432;Database=consultancy;Username=consultancy;Password=${POSTGRES_PASSWORD};SSL Mode=Disable
+    expose:
+      - "8000"
+    volumes:
+      - api_uploads:/app/wwwroot/uploads
+
+  web:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    container_name: consultancy-web
+    restart: unless-stopped
+    depends_on:
+      - consultancy-api
+    ports:
+      - "${HTTP_PORT:-80}:80"
+
+volumes:
+  postgres_data:
+  api_uploads:

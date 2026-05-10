@@ -23,7 +23,11 @@ public class ExceptionHandlingMiddleware
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unhandled exception");
+            _logger.LogError(ex,
+                "Unhandled exception {Method} {Path} TraceId={TraceId}",
+                context.Request.Method,
+                context.Request.Path.Value,
+                context.TraceIdentifier);
             context.Response.ContentType = "application/json";
             context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
             var body = JsonSerializer.Serialize(new { message = "An unexpected error occurred." });

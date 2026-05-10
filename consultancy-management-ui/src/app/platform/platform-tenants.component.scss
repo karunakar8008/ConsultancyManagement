@@ -1,0 +1,51 @@
+.page {
+  max-width: 960px;
+}
+
+.lede {
+  color: #5f6368;
+  line-height: 1.5;
+  margin: 0 0 1.5rem;
+  font-size: 0.95rem;
+}
+
+.card-create {
+  margin-bottom: 1.5rem;
+}
+
+.create-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-start;
+  margin-top: 0.5rem;
+
+  mat-form-field {
+    flex: 1 1 200px;
+    min-width: 180px;
+  }
+
+  button {
+    margin-top: 0.35rem;
+  }
+}
+
+.org-table {
+  width: 100%;
+}
+
+.card-table mat-card-content {
+  padding-top: 0;
+}
+
+code {
+  font-size: 0.9em;
+}
+
+button mat-icon {
+  margin-right: 0.35rem;
+  vertical-align: middle;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}

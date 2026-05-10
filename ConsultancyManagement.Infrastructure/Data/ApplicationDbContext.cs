@@ -9,6 +9,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
 {
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
 
+    public DbSet<Organization> Organizations => Set<Organization>();
     public DbSet<Consultant> Consultants => Set<Consultant>();
     public DbSet<SalesRecruiter> SalesRecruiters => Set<SalesRecruiter>();
     public DbSet<ManagementUser> ManagementUsers => Set<ManagementUser>();
@@ -29,10 +30,35 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     {
         base.OnModelCreating(modelBuilder);
 
+        var userEntityType = modelBuilder.Model.FindEntityType(typeof(ApplicationUser));
+        if (userEntityType is not null)
+        {
+            foreach (var index in userEntityType.GetIndexes().ToList())
+            {
+                var props = index.Properties.Select(p => p.Name).ToList();
+                if (index.IsUnique && props.Count == 1 &&
+                    props[0] is nameof(ApplicationUser.NormalizedUserName) or nameof(ApplicationUser.NormalizedEmail))
+                {
+                    userEntityType.RemoveIndex(index);
+                }
+            }
+        }
+
+        modelBuilder.Entity<Organization>(e =>
+        {
+            e.HasIndex(x => x.Slug).IsUnique();
+        });
+
         modelBuilder.Entity<ApplicationUser>(e =>
         {
             e.ToTable("Users");
-            e.HasIndex(x => x.EmployeeId).IsUnique();
+            e.HasIndex(x => new { x.OrganizationId, x.EmployeeId }).IsUnique();
+            e.HasIndex(x => new { x.OrganizationId, x.NormalizedUserName }).IsUnique();
+            e.HasIndex(x => new { x.OrganizationId, x.NormalizedEmail }).IsUnique();
+            e.HasOne(x => x.Organization)
+                .WithMany(o => o.Users)
+                .HasForeignKey(x => x.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
         modelBuilder.Entity<IdentityRole>(e => e.ToTable("Roles"));
         modelBuilder.Entity<IdentityUserRole<string>>(e => e.ToTable("UserRoles"));
@@ -44,6 +70,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
         modelBuilder.Entity<Consultant>(e =>
         {
             e.HasIndex(x => x.UserId).IsUnique();
+            e.HasOne(x => x.Organization)
+                .WithMany()
+                .HasForeignKey(x => x.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.User)
                 .WithMany()
                 .HasForeignKey(x => x.UserId)
@@ -53,6 +83,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
         modelBuilder.Entity<SalesRecruiter>(e =>
         {
             e.HasIndex(x => x.UserId).IsUnique();
+            e.HasOne(x => x.Organization)
+                .WithMany()
+                .HasForeignKey(x => x.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.User)
                 .WithMany()
                 .HasForeignKey(x => x.UserId)
@@ -62,6 +96,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
         modelBuilder.Entity<ManagementUser>(e =>
         {
             e.HasIndex(x => x.UserId).IsUnique();
+            e.HasOne(x => x.Organization)
+                .WithMany()
+                .HasForeignKey(x => x.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.User)
                 .WithMany()
                 .HasForeignKey(x => x.UserId)
@@ -111,7 +149,11 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
 
         modelBuilder.Entity<Vendor>(e =>
         {
-            e.HasIndex(x => x.VendorCode).IsUnique();
+            e.HasIndex(x => new { x.OrganizationId, x.VendorCode }).IsUnique();
+            e.HasOne(x => x.Organization)
+                .WithMany()
+                .HasForeignKey(x => x.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.SalesRecruiter)
                 .WithMany(s => s.Vendors)
                 .HasForeignKey(x => x.SalesRecruiterId)

@@ -2,6 +2,7 @@ using ConsultancyManagement.Core.DTOs;
 using ConsultancyManagement.Core.Entities;
 using ConsultancyManagement.Core.Enums;
 using ConsultancyManagement.Core.Interfaces;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using ConsultancyManagement.Infrastructure.Data;
@@ -12,12 +13,23 @@ public class AdminService : IAdminService
 {
     private readonly ApplicationDbContext _db;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly int _orgId;
+    private readonly IHttpContextAccessor _http;
 
-    public AdminService(ApplicationDbContext db, UserManager<ApplicationUser> userManager)
+    public AdminService(
+        ApplicationDbContext db,
+        UserManager<ApplicationUser> userManager,
+        ICurrentOrganization tenant,
+        IHttpContextAccessor http)
     {
         _db = db;
         _userManager = userManager;
+        _orgId = tenant.OrganizationId;
+        _http = http;
     }
+
+    private bool IsPlatformOperator =>
+        _http.HttpContext?.User.IsInRole(UserRole.PlatformAdmin.ToString()) == true;
 
     public async Task<AdminDashboardDto> GetDashboardAsync()
     {
@@ -28,10 +40,10 @@ public class AdminService : IAdminService
         var managementRoleId = await _db.Roles.Where(r => r.Name == UserRole.Management.ToString()).Select(r => r.Id).FirstOrDefaultAsync();
 
         var jobsFromDailyToday = await _db.DailyActivities
-            .Where(d => d.ActivityDate >= today && d.ActivityDate < tomorrow)
+            .Where(d => d.ActivityDate >= today && d.ActivityDate < tomorrow && d.Consultant.OrganizationId == _orgId)
             .SumAsync(d => (int?)d.JobsAppliedCount) ?? 0;
         var jobsFromApplicationsToday = await _db.JobApplications.CountAsync(j =>
-            j.AppliedDate >= today && j.AppliedDate < tomorrow);
+            j.AppliedDate >= today && j.AppliedDate < tomorrow && j.Consultant.OrganizationId == _orgId);
 
         return new AdminDashboardDto
         {
@@ -40,8 +52,10 @@ public class AdminService : IAdminService
             TotalManagementUsers = string.IsNullOrEmpty(managementRoleId) ? 0 : await ActiveUsersInRoleCountAsync(managementRoleId),
             // Jobs applied: all consultants’ daily activity totals plus standalone job-application rows (no overlap assumed).
             TodayApplications = jobsFromDailyToday + jobsFromApplicationsToday,
-            TodaySubmissions = await _db.Submissions.CountAsync(s => s.SubmissionDate >= today && s.SubmissionDate < tomorrow),
-            PendingDocuments = await _db.Documents.CountAsync(d => d.Status == "Pending")
+            TodaySubmissions = await _db.Submissions.CountAsync(s =>
+                s.SubmissionDate >= today && s.SubmissionDate < tomorrow && s.Consultant.OrganizationId == _orgId),
+            PendingDocuments = await _db.Documents.CountAsync(d =>
+                d.Status == "Pending" && d.Consultant.OrganizationId == _orgId)
         };
     }
 
@@ -54,7 +68,10 @@ public class AdminService : IAdminService
 
     public async Task<IReadOnlyList<AdminUserListDto>> GetUsersAsync()
     {
-        var users = await _userManager.Users.AsNoTracking().Where(u => !u.IsDeleted).OrderBy(u => u.Email).ToListAsync();
+        var users = await _userManager.Users.AsNoTracking()
+            .Where(u => !u.IsDeleted && u.OrganizationId == _orgId)
+            .OrderBy(u => u.Email)
+            .ToListAsync();
         var list = new List<AdminUserListDto>();
         foreach (var u in users)
         {
@@ -76,7 +93,8 @@ public class AdminService : IAdminService
 
     public async Task<AdminUserDetailDto?> GetUserByIdAsync(string employeeId)
     {
-        var u = await _userManager.Users.FirstOrDefaultAsync(u => u.EmployeeId == employeeId);
+        var u = await _userManager.Users.FirstOrDefaultAsync(u =>
+            u.EmployeeId == employeeId && u.OrganizationId == _orgId);
         if (u is null) return null;
         var roles = await _userManager.GetRolesAsync(u);
         return new AdminUserDetailDto
@@ -101,9 +119,12 @@ public class AdminService : IAdminService
         if (string.IsNullOrWhiteSpace(dto.Password)) return (false, "Password is required.", null);
         if (string.IsNullOrWhiteSpace(dto.Role)) return (false, "Role is required.", null);
         if (!ValidationHelper.TryParseRole(dto.Role, out var roleEnum)) return (false, "Role must exist.", null);
+        if (roleEnum == UserRole.PlatformAdmin && !IsPlatformOperator)
+            return (false, "Invalid role.", null);
 
         var normCreate = _userManager.NormalizeEmail(dto.Email.Trim());
-        if (await _userManager.Users.AnyAsync(u => !u.IsDeleted && u.NormalizedEmail == normCreate))
+        if (await _userManager.Users.AnyAsync(u =>
+                !u.IsDeleted && u.OrganizationId == _orgId && u.NormalizedEmail == normCreate))
             return (false, "A user with this email already exists.", null);
 
         string assignedEmployeeId;
@@ -112,7 +133,8 @@ public class AdminService : IAdminService
             if (!ValidationHelper.TryValidateEmployeeIdForRole(dto.EmployeeId, roleEnum, out var empErr))
                 return (false, empErr, null);
             assignedEmployeeId = dto.EmployeeId.Trim().ToUpperInvariant();
-            if (await _userManager.Users.AnyAsync(u => u.EmployeeId == assignedEmployeeId))
+            if (await _userManager.Users.AnyAsync(u =>
+                    u.OrganizationId == _orgId && u.EmployeeId == assignedEmployeeId))
                 return (false, "That employee id is already in use.", null);
         }
         else
@@ -122,6 +144,7 @@ public class AdminService : IAdminService
 
         var user = new ApplicationUser
         {
+            OrganizationId = _orgId,
             UserName = dto.Email.Trim(),
             Email = dto.Email.Trim(),
             EmailConfirmed = true,
@@ -142,14 +165,19 @@ public class AdminService : IAdminService
 
     public async Task<(bool Success, string? Error)> UpdateUserAsync(string employeeId, UpdateAdminUserRequestDto dto)
     {
-        var user = await _userManager.Users.FirstOrDefaultAsync(u => u.EmployeeId == employeeId);
+        var user = await _userManager.Users.FirstOrDefaultAsync(u =>
+            u.EmployeeId == employeeId && u.OrganizationId == _orgId);
         if (user is null) return (false, "User not found.");
         if (user.IsDeleted) return (false, "User account is archived.");
         if (!ValidationHelper.IsValidEmail(dto.Email)) return (false, "A valid email is required.");
         var normalizedEmail = _userManager.NormalizeEmail(dto.Email.Trim());
         var duplicate = await _userManager.Users.AnyAsync(u =>
-            u.Id != user.Id && !u.IsDeleted && u.NormalizedEmail == normalizedEmail);
+            u.Id != user.Id && !u.IsDeleted && u.OrganizationId == _orgId && u.NormalizedEmail == normalizedEmail);
         if (duplicate) return (false, "A user with this email already exists.");
+
+        if (dto.Roles.Contains(UserRole.PlatformAdmin.ToString(), StringComparer.OrdinalIgnoreCase) &&
+            !IsPlatformOperator)
+            return (false, "Cannot assign that role.");
 
         user.FirstName = dto.FirstName.Trim();
         user.LastName = dto.LastName.Trim();
@@ -185,9 +213,16 @@ public class AdminService : IAdminService
 
     public async Task<(bool Success, string? Error)> DeleteUserAsync(string employeeId)
     {
-        var user = await _userManager.Users.FirstOrDefaultAsync(u => u.EmployeeId == employeeId);
+        var user = await _userManager.Users.FirstOrDefaultAsync(u =>
+            u.EmployeeId == employeeId && u.OrganizationId == _orgId);
         if (user is null) return (false, "User not found.");
         if (user.IsDeleted) return (false, "User already removed.");
+
+        var roles = await _userManager.GetRolesAsync(user);
+        if (roles.Contains(UserRole.Admin.ToString()))
+            return (false, "Tenant administrators cannot be deleted.");
+        if (roles.Contains(UserRole.PlatformAdmin.ToString()))
+            return (false, "Platform administrators cannot be deleted.");
 
         var consultant = await _db.Consultants.FirstOrDefaultAsync(c => c.UserId == user.Id);
         var recruiter = await _db.SalesRecruiters.FirstOrDefaultAsync(s => s.UserId == user.Id);
@@ -237,7 +272,11 @@ public class AdminService : IAdminService
 
     public async Task<IReadOnlyList<RoleListDto>> GetRolesAsync()
     {
-        return await _db.Roles.AsNoTracking()
+        var q = _db.Roles.AsNoTracking().AsQueryable();
+        if (!IsPlatformOperator)
+            q = q.Where(r => r.Name != UserRole.PlatformAdmin.ToString());
+
+        return await q
             .OrderBy(r => r.Name)
             .Select(r => new RoleListDto { Name = r.Name ?? string.Empty })
             .ToListAsync();
@@ -247,6 +286,7 @@ public class AdminService : IAdminService
     {
         var user = await ResolveIdentityUserAsync(dto.UserId);
         if (user is null) return (false, "Consultant user not found.", null);
+        if (user.OrganizationId != _orgId) return (false, "Consultant user not found.", null);
         if (await _db.Consultants.AnyAsync(c => c.UserId == user.Id))
             return (false, "Consultant profile already exists for this user.", null);
 
@@ -256,6 +296,7 @@ public class AdminService : IAdminService
 
         var c = new Consultant
         {
+            OrganizationId = _orgId,
             UserId = user.Id,
             FirstName = dto.FirstName,
             LastName = dto.LastName,
@@ -279,6 +320,7 @@ public class AdminService : IAdminService
         await EnsureRoleProfilesAsync(UserRole.Consultant);
 
         return await _db.Consultants.AsNoTracking()
+            .Where(c => c.OrganizationId == _orgId)
             .OrderBy(c => c.LastName)
             .Select(c => new ConsultantListDto
             {
@@ -299,7 +341,8 @@ public class AdminService : IAdminService
 
     public async Task<ConsultantListDto?> GetConsultantByEmployeeIdAsync(string employeeId)
     {
-        var user = await _userManager.Users.AsNoTracking().FirstOrDefaultAsync(u => u.EmployeeId == employeeId);
+        var user = await _userManager.Users.AsNoTracking().FirstOrDefaultAsync(u =>
+            u.EmployeeId == employeeId && u.OrganizationId == _orgId);
         if (user is null) return null;
         var roles = await _userManager.GetRolesAsync(user);
         if (!roles.Contains(UserRole.Consultant.ToString())) return null;
@@ -329,7 +372,8 @@ public class AdminService : IAdminService
 
     public async Task<(bool Success, string? Error)> UpdateConsultantAsync(string employeeId, CreateConsultantRequestDto dto)
     {
-        var user = await _userManager.Users.FirstOrDefaultAsync(u => u.EmployeeId == employeeId);
+        var user = await _userManager.Users.FirstOrDefaultAsync(u =>
+            u.EmployeeId == employeeId && u.OrganizationId == _orgId);
         if (user is null) return (false, "Consultant not found.");
         if (user.IsDeleted) return (false, "Consultant account is archived.");
         var roles = await _userManager.GetRolesAsync(user);
@@ -340,6 +384,7 @@ public class AdminService : IAdminService
         {
             consultant = new Consultant
             {
+                OrganizationId = _orgId,
                 UserId = user.Id,
                 CreatedAt = DateTime.UtcNow
             };
@@ -365,6 +410,7 @@ public class AdminService : IAdminService
     {
         var user = await ResolveIdentityUserAsync(dto.UserId);
         if (user is null) return (false, "User not found.", null);
+        if (user.OrganizationId != _orgId) return (false, "User not found.", null);
         if (await _db.SalesRecruiters.AnyAsync(s => s.UserId == user.Id))
             return (false, "Sales recruiter profile already exists.", null);
         var roles = await _userManager.GetRolesAsync(user);
@@ -373,6 +419,7 @@ public class AdminService : IAdminService
 
         var s = new SalesRecruiter
         {
+            OrganizationId = _orgId,
             UserId = user.Id,
             FirstName = dto.FirstName,
             LastName = dto.LastName,
@@ -391,6 +438,7 @@ public class AdminService : IAdminService
         await EnsureRoleProfilesAsync(UserRole.SalesRecruiter);
 
         return await _db.SalesRecruiters.AsNoTracking()
+            .Where(s => s.OrganizationId == _orgId)
             .OrderBy(s => s.LastName)
             .Select(s => new SalesRecruiterListDto
             {
@@ -408,7 +456,8 @@ public class AdminService : IAdminService
 
     public async Task<SalesRecruiterListDto?> GetSalesRecruiterByEmployeeIdAsync(string employeeId)
     {
-        var user = await _userManager.Users.AsNoTracking().FirstOrDefaultAsync(u => u.EmployeeId == employeeId);
+        var user = await _userManager.Users.AsNoTracking().FirstOrDefaultAsync(u =>
+            u.EmployeeId == employeeId && u.OrganizationId == _orgId);
         if (user is null) return null;
         var roles = await _userManager.GetRolesAsync(user);
         if (!roles.Contains(UserRole.SalesRecruiter.ToString())) return null;
@@ -435,7 +484,8 @@ public class AdminService : IAdminService
 
     public async Task<(bool Success, string? Error)> UpdateSalesRecruiterAsync(string employeeId, CreateSalesRecruiterRequestDto dto)
     {
-        var user = await _userManager.Users.FirstOrDefaultAsync(u => u.EmployeeId == employeeId);
+        var user = await _userManager.Users.FirstOrDefaultAsync(u =>
+            u.EmployeeId == employeeId && u.OrganizationId == _orgId);
         if (user is null) return (false, "Sales recruiter not found.");
         if (user.IsDeleted) return (false, "Sales recruiter account is archived.");
         var roles = await _userManager.GetRolesAsync(user);
@@ -446,6 +496,7 @@ public class AdminService : IAdminService
         {
             recruiter = new SalesRecruiter
             {
+                OrganizationId = _orgId,
                 UserId = user.Id,
                 CreatedAt = DateTime.UtcNow
             };
@@ -466,6 +517,7 @@ public class AdminService : IAdminService
     {
         var user = await ResolveIdentityUserAsync(dto.UserId);
         if (user is null) return (false, "User not found.", null);
+        if (user.OrganizationId != _orgId) return (false, "User not found.", null);
         if (await _db.ManagementUsers.AnyAsync(m => m.UserId == user.Id))
             return (false, "Management profile already exists.", null);
         var roles = await _userManager.GetRolesAsync(user);
@@ -474,6 +526,7 @@ public class AdminService : IAdminService
 
         var m = new ManagementUser
         {
+            OrganizationId = _orgId,
             UserId = user.Id,
             FirstName = dto.FirstName,
             LastName = dto.LastName,
@@ -493,6 +546,7 @@ public class AdminService : IAdminService
         await EnsureRoleProfilesAsync(UserRole.Management);
 
         return await _db.ManagementUsers.AsNoTracking()
+            .Where(m => m.OrganizationId == _orgId)
             .OrderBy(m => m.LastName)
             .Select(m => new ManagementUserListDto
             {
@@ -509,7 +563,8 @@ public class AdminService : IAdminService
 
     public async Task<(bool Success, string? Error)> UpdateManagementUserAsync(string employeeId, CreateManagementUserRequestDto dto)
     {
-        var user = await _userManager.Users.FirstOrDefaultAsync(u => u.EmployeeId == employeeId);
+        var user = await _userManager.Users.FirstOrDefaultAsync(u =>
+            u.EmployeeId == employeeId && u.OrganizationId == _orgId);
         if (user is null) return (false, "Management user not found.");
         if (user.IsDeleted) return (false, "Management user account is archived.");
         var roles = await _userManager.GetRolesAsync(user);
@@ -520,6 +575,7 @@ public class AdminService : IAdminService
         {
             mg = new ManagementUser
             {
+                OrganizationId = _orgId,
                 UserId = user.Id,
                 CreatedAt = DateTime.UtcNow
             };
@@ -546,6 +602,7 @@ public class AdminService : IAdminService
                 {
                     _db.Consultants.Add(new Consultant
                     {
+                        OrganizationId = user.OrganizationId,
                         UserId = user.Id,
                         FirstName = user.FirstName,
                         LastName = user.LastName,
@@ -561,6 +618,7 @@ public class AdminService : IAdminService
                 {
                     _db.SalesRecruiters.Add(new SalesRecruiter
                     {
+                        OrganizationId = user.OrganizationId,
                         UserId = user.Id,
                         FirstName = user.FirstName,
                         LastName = user.LastName,
@@ -576,6 +634,7 @@ public class AdminService : IAdminService
                 {
                     _db.ManagementUsers.Add(new ManagementUser
                     {
+                        OrganizationId = user.OrganizationId,
                         UserId = user.Id,
                         FirstName = user.FirstName,
                         LastName = user.LastName,
@@ -611,6 +670,7 @@ public class AdminService : IAdminService
             {
                 _db.Consultants.Add(new Consultant
                 {
+                    OrganizationId = user.OrganizationId,
                     UserId = user.Id,
                     FirstName = user.FirstName,
                     LastName = user.LastName,
@@ -632,6 +692,7 @@ public class AdminService : IAdminService
             {
                 _db.SalesRecruiters.Add(new SalesRecruiter
                 {
+                    OrganizationId = user.OrganizationId,
                     UserId = user.Id,
                     FirstName = user.FirstName,
                     LastName = user.LastName,
@@ -653,6 +714,7 @@ public class AdminService : IAdminService
             {
                 _db.ManagementUsers.Add(new ManagementUser
                 {
+                    OrganizationId = user.OrganizationId,
                     UserId = user.Id,
                     FirstName = user.FirstName,
                     LastName = user.LastName,
@@ -702,6 +764,7 @@ public class AdminService : IAdminService
     {
         var consultant = new Consultant
         {
+            OrganizationId = user.OrganizationId,
             UserId = user.Id,
             FirstName = user.FirstName,
             LastName = user.LastName,
@@ -735,6 +798,7 @@ public class AdminService : IAdminService
     {
         var recruiter = new SalesRecruiter
         {
+            OrganizationId = user.OrganizationId,
             UserId = user.Id,
             FirstName = user.FirstName,
             LastName = user.LastName,
@@ -766,12 +830,14 @@ public class AdminService : IAdminService
         var roleId = await _db.Roles.Where(r => r.Name == role.ToString()).Select(r => r.Id).FirstOrDefaultAsync();
         if (string.IsNullOrWhiteSpace(roleId)) return;
 
-        IQueryable<string> roleUserIds = _db.UserRoles.Where(ur => ur.RoleId == roleId).Select(ur => ur.UserId);
+        IQueryable<string> roleUserIds = _db.UserRoles
+            .Where(ur => ur.RoleId == roleId)
+            .Join(_db.Users.Where(u => u.OrganizationId == _orgId), ur => ur.UserId, u => u.Id, (ur, _) => ur.UserId);
         IQueryable<string> existingUserIds = role switch
         {
-            UserRole.Consultant => _db.Consultants.Select(c => c.UserId),
-            UserRole.SalesRecruiter => _db.SalesRecruiters.Select(s => s.UserId),
-            UserRole.Management => _db.ManagementUsers.Select(m => m.UserId),
+            UserRole.Consultant => _db.Consultants.Where(c => c.OrganizationId == _orgId).Select(c => c.UserId),
+            UserRole.SalesRecruiter => _db.SalesRecruiters.Where(s => s.OrganizationId == _orgId).Select(s => s.UserId),
+            UserRole.Management => _db.ManagementUsers.Where(m => m.OrganizationId == _orgId).Select(m => m.UserId),
             _ => Enumerable.Empty<string>().AsQueryable()
         };
 
@@ -786,6 +852,7 @@ public class AdminService : IAdminService
                 case UserRole.Consultant:
                     _db.Consultants.Add(new Consultant
                     {
+                        OrganizationId = user.OrganizationId,
                         UserId = user.Id,
                         FirstName = user.FirstName,
                         LastName = user.LastName,
@@ -798,6 +865,7 @@ public class AdminService : IAdminService
                 case UserRole.SalesRecruiter:
                     _db.SalesRecruiters.Add(new SalesRecruiter
                     {
+                        OrganizationId = user.OrganizationId,
                         UserId = user.Id,
                         FirstName = user.FirstName,
                         LastName = user.LastName,
@@ -810,6 +878,7 @@ public class AdminService : IAdminService
                 case UserRole.Management:
                     _db.ManagementUsers.Add(new ManagementUser
                     {
+                        OrganizationId = user.OrganizationId,
                         UserId = user.Id,
                         FirstName = user.FirstName,
                         LastName = user.LastName,
@@ -834,22 +903,23 @@ public class AdminService : IAdminService
         var key = idOrEmployeeId.Trim();
 
         var byId = await _userManager.FindByIdAsync(key);
-        if (byId is not null && !byId.IsDeleted) return byId;
+        if (byId is not null && !byId.IsDeleted && byId.OrganizationId == _orgId) return byId;
 
-        return await _userManager.Users.FirstOrDefaultAsync(u => u.EmployeeId == key && !u.IsDeleted);
+        return await _userManager.Users.FirstOrDefaultAsync(u =>
+            u.EmployeeId == key && !u.IsDeleted && u.OrganizationId == _orgId);
     }
 
     private async Task<int> ActiveUsersInRoleCountAsync(string roleId) =>
         await (from ur in _db.UserRoles
             join u in _db.Users on ur.UserId equals u.Id
-            where ur.RoleId == roleId && !u.IsDeleted
+            where ur.RoleId == roleId && !u.IsDeleted && u.OrganizationId == _orgId
             select ur).CountAsync();
 
     private async Task<string> GetNextEmployeeIdAsync(UserRole role)
     {
         var prefix = EmployeeIdGenerator.GetPrefix(role);
         var ids = await _userManager.Users
-            .Where(u => !string.IsNullOrEmpty(u.EmployeeId) && u.EmployeeId.StartsWith(prefix))
+            .Where(u => u.OrganizationId == _orgId && !string.IsNullOrEmpty(u.EmployeeId) && u.EmployeeId.StartsWith(prefix))
             .Select(u => u.EmployeeId)
             .ToListAsync();
 
@@ -872,6 +942,8 @@ public class AdminService : IAdminService
         if (consultant is null) return (false, "Consultant must exist before assigning.", null);
         var sales = await _db.SalesRecruiters.FirstOrDefaultAsync(s => s.Id == dto.SalesRecruiterId);
         if (sales is null) return (false, "Sales recruiter must exist before assigning.", null);
+        if (consultant.OrganizationId != _orgId || sales.OrganizationId != _orgId)
+            return (false, "Consultant and sales recruiter must belong to your organization.", null);
 
         var dup = await _db.ConsultantSalesAssignments.AnyAsync(a =>
             a.ConsultantId == dto.ConsultantId && a.SalesRecruiterId == dto.SalesRecruiterId && a.IsActive);
@@ -893,6 +965,7 @@ public class AdminService : IAdminService
     public async Task<IReadOnlyList<AssignmentListDto>> GetAssignmentsAsync()
     {
         return await _db.ConsultantSalesAssignments.AsNoTracking()
+            .Where(a => a.Consultant.OrganizationId == _orgId)
             .OrderByDescending(a => a.StartDate)
             .Select(a => new AssignmentListDto
             {
@@ -909,8 +982,11 @@ public class AdminService : IAdminService
 
     public async Task<(bool Success, string? Error)> UpdateAssignmentAsync(int id, UpdateAssignmentRequestDto dto)
     {
-        var a = await _db.ConsultantSalesAssignments.FirstOrDefaultAsync(x => x.Id == id);
+        var a = await _db.ConsultantSalesAssignments
+            .Include(x => x.Consultant)
+            .FirstOrDefaultAsync(x => x.Id == id);
         if (a is null) return (false, "Assignment not found.");
+        if (a.Consultant.OrganizationId != _orgId) return (false, "Assignment not found.");
         a.EndDate = dto.EndDate;
         a.IsActive = dto.IsActive;
         await _db.SaveChangesAsync();
@@ -923,6 +999,8 @@ public class AdminService : IAdminService
         if (sales is null) return (false, "Sales recruiter not found.", null);
         var mgmt = await _db.ManagementUsers.FirstOrDefaultAsync(m => m.Id == dto.ManagementUserId);
         if (mgmt is null) return (false, "Management user not found.", null);
+        if (sales.OrganizationId != _orgId || mgmt.OrganizationId != _orgId)
+            return (false, "Users must belong to your organization.", null);
 
         var dup = await _db.SalesManagementAssignments.AnyAsync(a =>
             a.SalesRecruiterId == dto.SalesRecruiterId && a.ManagementUserId == dto.ManagementUserId && a.IsActive);
@@ -944,6 +1022,7 @@ public class AdminService : IAdminService
     public async Task<IReadOnlyList<SalesManagementAssignmentListDto>> GetSalesManagementAssignmentsAsync()
     {
         return await _db.SalesManagementAssignments.AsNoTracking()
+            .Where(a => a.SalesRecruiter.OrganizationId == _orgId)
             .OrderByDescending(a => a.StartDate)
             .Select(a => new SalesManagementAssignmentListDto
             {
@@ -960,8 +1039,11 @@ public class AdminService : IAdminService
 
     public async Task<(bool Success, string? Error)> UpdateSalesManagementAssignmentAsync(int id, UpdateAssignmentRequestDto dto)
     {
-        var a = await _db.SalesManagementAssignments.FirstOrDefaultAsync(x => x.Id == id);
+        var a = await _db.SalesManagementAssignments
+            .Include(x => x.SalesRecruiter)
+            .FirstOrDefaultAsync(x => x.Id == id);
         if (a is null) return (false, "Assignment not found.");
+        if (a.SalesRecruiter.OrganizationId != _orgId) return (false, "Assignment not found.");
         a.EndDate = dto.EndDate;
         a.IsActive = dto.IsActive;
         await _db.SaveChangesAsync();
@@ -971,7 +1053,8 @@ public class AdminService : IAdminService
     public async Task<IReadOnlyList<InterviewCalendarEventDto>> GetInterviewCalendarAsync(DateTime fromUtc, DateTime toUtc)
     {
         return await _db.Interviews.AsNoTracking()
-            .Where(i => i.InterviewDate < toUtc &&
+            .Where(i => i.Submission.Consultant.OrganizationId == _orgId &&
+                i.InterviewDate < toUtc &&
                 (!i.InterviewEndDate.HasValue
                     ? i.InterviewDate >= fromUtc
                     : i.InterviewEndDate.Value >= fromUtc))

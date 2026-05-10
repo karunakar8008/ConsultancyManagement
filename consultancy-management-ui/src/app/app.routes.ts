@@ -24,6 +24,13 @@ export const routes: Routes = [
     children: [
       { path: '', pathMatch: 'full', component: RoleRedirectComponent },
       {
+        path: 'platform/tenants',
+        canActivate: [roleGuard],
+        data: { roles: ['PlatformAdmin'] },
+        loadComponent: () =>
+          import('./platform/platform-tenants.component').then((m) => m.PlatformTenantsComponent)
+      },
+      {
         path: 'admin/dashboard',
         canActivate: [roleGuard],
         data: { roles: ['Admin'] },

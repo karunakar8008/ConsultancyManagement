@@ -39,6 +39,7 @@ export class ResetPasswordComponent implements OnInit {
   missingToken = false;
   private email = '';
   private token = '';
+  private organizationSlug = '';
 
   form = this.fb.nonNullable.group({
     password: ['', [Validators.required, Validators.minLength(8)]],
@@ -49,7 +50,8 @@ export class ResetPasswordComponent implements OnInit {
     const q = this.route.snapshot.queryParamMap;
     this.email = q.get('email')?.trim() ?? '';
     this.token = q.get('token')?.trim() ?? '';
-    if (!this.email || !this.token) {
+    this.organizationSlug = q.get('organizationSlug')?.trim() ?? this.auth.getSavedOrganizationSlug();
+    if (!this.email || !this.token || !this.organizationSlug) {
       this.missingToken = true;
     }
   }
@@ -67,7 +69,7 @@ export class ResetPasswordComponent implements OnInit {
     }
     this.loading = true;
     this.auth
-      .resetPassword(this.email, this.token, password)
+      .resetPassword(this.organizationSlug, this.email, this.token, password)
       .pipe(finalize(() => (this.loading = false)))
       .subscribe({
         next: () => {

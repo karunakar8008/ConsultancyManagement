@@ -2,6 +2,8 @@ namespace ConsultancyManagement.Core.DTOs;
 
 public class LoginRequestDto
 {
+    /// <summary>Organization slug from login screen (e.g. acme-consulting).</summary>
+    public string OrganizationSlug { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
 }
@@ -15,6 +17,9 @@ public class LoginResponseDto
     public string Email { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
     public IList<string> Roles { get; set; } = new List<string>();
+    public int OrganizationId { get; set; }
+    public string OrganizationSlug { get; set; } = string.Empty;
+    public string OrganizationName { get; set; } = string.Empty;
 }
 
 public class RegisterUserRequestDto
@@ -40,16 +45,21 @@ public class CurrentUserDto
     public string Email { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
     public IList<string> Roles { get; set; } = new List<string>();
+    public int OrganizationId { get; set; }
+    public string OrganizationSlug { get; set; } = string.Empty;
+    public string OrganizationName { get; set; } = string.Empty;
 }
 
 public class ForgotPasswordRequestDto
 {
+    public string OrganizationSlug { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string ResetUrlBase { get; set; } = string.Empty;
 }
 
 public class ResetPasswordRequestDto
 {
+    public string OrganizationSlug { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string Token { get; set; } = string.Empty;
     public string NewPassword { get; set; } = string.Empty;

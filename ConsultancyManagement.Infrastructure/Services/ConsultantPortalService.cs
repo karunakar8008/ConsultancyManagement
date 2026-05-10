@@ -20,25 +20,34 @@ public class ConsultantPortalService : IConsultantPortalService
     private readonly IHostEnvironment _env;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly INotificationService _notifications;
+    private readonly int _orgId;
 
     public ConsultantPortalService(
         ApplicationDbContext db,
         IHostEnvironment env,
         UserManager<ApplicationUser> userManager,
-        INotificationService notifications)
+        INotificationService notifications,
+        ICurrentOrganization tenant)
     {
         _db = db;
         _env = env;
         _userManager = userManager;
         _notifications = notifications;
+        _orgId = tenant.OrganizationId;
     }
 
     private async Task<int?> ResolveConsultantIdAsync(string? userId, bool isAdminOrManagement, int? consultantId)
     {
-        if (isAdminOrManagement && consultantId.HasValue) return consultantId;
+        if (isAdminOrManagement && consultantId.HasValue)
+        {
+            var ok = await _db.Consultants.AsNoTracking()
+                .AnyAsync(c => c.Id == consultantId.Value && c.OrganizationId == _orgId);
+            return ok ? consultantId : null;
+        }
+
         if (userId is null) return null;
         return await _db.Consultants.AsNoTracking()
-            .Where(c => c.UserId == userId)
+            .Where(c => c.UserId == userId && c.OrganizationId == _orgId)
             .Select(c => (int?)c.Id)
             .FirstOrDefaultAsync();
     }
@@ -83,14 +92,15 @@ public class ConsultantPortalService : IConsultantPortalService
         var userId = UserContextHelper.GetUserId(user);
         if (string.IsNullOrEmpty(userId)) return (false, "User not found.");
 
-        var consultant = await _db.Consultants.FirstOrDefaultAsync(c => c.UserId == userId);
+        var consultant = await _db.Consultants.FirstOrDefaultAsync(c => c.UserId == userId && c.OrganizationId == _orgId);
         if (consultant is null) return (false, "Consultant not found.");
 
         var appUser = await _userManager.FindByIdAsync(userId);
         if (appUser is null) return (false, "User not found.");
 
         var norm = _userManager.NormalizeEmail(dto.Email.Trim());
-        if (await _userManager.Users.AnyAsync(u => u.Id != userId && !u.IsDeleted && u.NormalizedEmail == norm))
+        if (await _userManager.Users.AnyAsync(u =>
+                u.Id != userId && !u.IsDeleted && u.NormalizedEmail == norm && u.OrganizationId == appUser.OrganizationId))
             return (false, "That email is already in use.");
 
         var email = dto.Email.Trim();
@@ -116,7 +126,7 @@ public class ConsultantPortalService : IConsultantPortalService
     public async Task<ConsultantProfileDto?> GetProfileAsync(ClaimsPrincipal user, bool isAdminOrManagement, int? consultantId)
     {
         var userId = UserContextHelper.GetUserId(user);
-        var query = _db.Consultants.AsNoTracking();
+        var query = _db.Consultants.AsNoTracking().Where(c => c.OrganizationId == _orgId);
         if (isAdminOrManagement && consultantId.HasValue)
             query = query.Where(c => c.Id == consultantId.Value);
         else if (userId != null)
@@ -505,7 +515,7 @@ public class ConsultantPortalService : IConsultantPortalService
         if (!cid.HasValue) return (false, "Consultant not found.", null);
 
         var consultant = await _db.Consultants.AsNoTracking()
-            .FirstOrDefaultAsync(c => c.Id == cid.Value);
+            .FirstOrDefaultAsync(c => c.Id == cid.Value && c.OrganizationId == _orgId);
         if (consultant is null) return (false, "Consultant not found.", null);
 
         var ext = Path.GetExtension(originalFileName).ToLowerInvariant();
@@ -569,8 +579,9 @@ public class ConsultantPortalService : IConsultantPortalService
         bool isAdminOrManagement,
         int documentId)
     {
-        var doc = await _db.Documents.FirstOrDefaultAsync(d => d.Id == documentId);
+        var doc = await _db.Documents.Include(d => d.Consultant).FirstOrDefaultAsync(d => d.Id == documentId);
         if (doc is null) return (false, "Document not found.", null, string.Empty);
+        if (doc.Consultant.OrganizationId != _orgId) return (false, "Forbidden.", null, string.Empty);
 
         var elevated = UserContextHelper.IsInAnyRole(user,
             UserRole.Admin.ToString(),

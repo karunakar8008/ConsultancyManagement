@@ -57,7 +57,13 @@ public class AdminController : ControllerBase
     public async Task<IActionResult> DeleteUser(string id)
     {
         var (ok, err) = await _admin.DeleteUserAsync(id);
-        if (!ok) return NotFound(new { message = err });
+        if (!ok)
+        {
+            if (err == "User not found.")
+                return NotFound(new { message = err });
+            return BadRequest(new { message = err });
+        }
+
         return Ok(new { message = "User archived successfully" });
     }
 

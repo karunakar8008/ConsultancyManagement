@@ -8,8 +8,13 @@ namespace ConsultancyManagement.Infrastructure.Services;
 public class ReportsService : IReportsService
 {
     private readonly ApplicationDbContext _db;
+    private readonly int _orgId;
 
-    public ReportsService(ApplicationDbContext db) => _db = db;
+    public ReportsService(ApplicationDbContext db, ICurrentOrganization tenant)
+    {
+        _db = db;
+        _orgId = tenant.OrganizationId;
+    }
 
     public async Task<DailySummaryReportDto?> GetDailySummaryAsync(
         DateTime date, int? consultantId = null, int? salesRecruiterId = null)
@@ -24,7 +29,7 @@ public class ReportsService : IReportsService
         {
             var c = await _db.Consultants.AsNoTracking()
                 .Include(x => x.User)
-                .FirstOrDefaultAsync(x => x.Id == consultantId.Value);
+                .FirstOrDefaultAsync(x => x.Id == consultantId.Value && x.OrganizationId == _orgId);
             if (c is null) return null;
             var label = $"{c.FirstName} {c.LastName}".Trim();
 
@@ -56,7 +61,7 @@ public class ReportsService : IReportsService
         if (salesRecruiterId.HasValue)
         {
             var sr = await _db.SalesRecruiters.AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Id == salesRecruiterId.Value);
+                .FirstOrDefaultAsync(x => x.Id == salesRecruiterId.Value && x.OrganizationId == _orgId);
             if (sr is null) return null;
             var sLabel = $"{sr.FirstName} {sr.LastName}".Trim();
 
@@ -70,10 +75,11 @@ public class ReportsService : IReportsService
                 .ToListAsync();
 
             var submissionRowsToday = await _db.Submissions.CountAsync(s =>
-                s.SalesRecruiterId == salesRecruiterId.Value && s.SubmissionDate >= day && s.SubmissionDate < next);
+                s.SalesRecruiterId == salesRecruiterId.Value && s.SubmissionDate >= day && s.SubmissionDate < next &&
+                s.Consultant.OrganizationId == _orgId);
             var interviewsToday = await _db.Interviews.CountAsync(i =>
                 i.Submission.SalesRecruiterId == salesRecruiterId.Value && i.InterviewDate >= day &&
-                i.InterviewDate < next);
+                i.InterviewDate < next && i.Submission.Consultant.OrganizationId == _orgId);
 
             return new DailySummaryReportDto
             {
@@ -90,11 +96,13 @@ public class ReportsService : IReportsService
         }
 
         var allActivities = await _db.DailyActivities.AsNoTracking()
-            .Where(d => d.ActivityDate >= day && d.ActivityDate < next)
+            .Where(d => d.ActivityDate >= day && d.ActivityDate < next && d.Consultant.OrganizationId == _orgId)
             .ToListAsync();
 
-        var subsToday = await _db.Submissions.CountAsync(s => s.SubmissionDate >= day && s.SubmissionDate < next);
-        var intsToday = await _db.Interviews.CountAsync(i => i.InterviewDate >= day && i.InterviewDate < next);
+        var subsToday = await _db.Submissions.CountAsync(s =>
+            s.SubmissionDate >= day && s.SubmissionDate < next && s.Consultant.OrganizationId == _orgId);
+        var intsToday = await _db.Interviews.CountAsync(i =>
+            i.InterviewDate >= day && i.InterviewDate < next && i.Submission.Consultant.OrganizationId == _orgId);
 
         return new DailySummaryReportDto
         {
@@ -105,7 +113,7 @@ public class ReportsService : IReportsService
             TotalSubmissions = subsToday,
             TotalInterviewCalls = intsToday,
             ActiveConsultants = await _db.Consultants.CountAsync(c =>
-                c.Status == "Active" && !c.User.IsDeleted)
+                c.OrganizationId == _orgId && c.Status == "Active" && !c.User.IsDeleted)
         };
     }
 
@@ -120,7 +128,8 @@ public class ReportsService : IReportsService
 
         if (consultantId.HasValue)
         {
-            var c = await _db.Consultants.AsNoTracking().FirstOrDefaultAsync(x => x.Id == consultantId.Value);
+            var c = await _db.Consultants.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == consultantId.Value && x.OrganizationId == _orgId);
             if (c is null) return null;
             var label = $"{c.FirstName} {c.LastName}".Trim();
 
@@ -149,7 +158,7 @@ public class ReportsService : IReportsService
         if (salesRecruiterId.HasValue)
         {
             var sr = await _db.SalesRecruiters.AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Id == salesRecruiterId.Value);
+                .FirstOrDefaultAsync(x => x.Id == salesRecruiterId.Value && x.OrganizationId == _orgId);
             if (sr is null) return null;
             var sLabel = $"{sr.FirstName} {sr.LastName}".Trim();
 
@@ -164,7 +173,7 @@ public class ReportsService : IReportsService
 
             var interviews = await _db.Interviews.CountAsync(i =>
                 i.Submission.SalesRecruiterId == salesRecruiterId.Value && i.InterviewDate >= start &&
-                i.InterviewDate < endExclusive);
+                i.InterviewDate < endExclusive && i.Submission.Consultant.OrganizationId == _orgId);
 
             return new WeeklySummaryReportDto
             {
@@ -174,7 +183,8 @@ public class ReportsService : IReportsService
                 TotalVendorReachOuts = activities.Sum(a => a.VendorReachedOutCount),
                 TotalVendorResponses = activities.Sum(a => a.VendorResponseCount),
                 TotalSubmissions = await _db.Submissions.CountAsync(s =>
-                    s.SalesRecruiterId == salesRecruiterId.Value && s.SubmissionDate >= start && s.SubmissionDate < endExclusive),
+                    s.SalesRecruiterId == salesRecruiterId.Value && s.SubmissionDate >= start && s.SubmissionDate < endExclusive &&
+                    s.Consultant.OrganizationId == _orgId),
                 TotalInterviews = interviews,
                 ScopeSalesRecruiterId = salesRecruiterId,
                 ScopeSalesRecruiterName = sLabel
@@ -182,10 +192,11 @@ public class ReportsService : IReportsService
         }
 
         var allActivities = await _db.DailyActivities.AsNoTracking()
-            .Where(d => d.ActivityDate >= start && d.ActivityDate < endExclusive)
+            .Where(d => d.ActivityDate >= start && d.ActivityDate < endExclusive && d.Consultant.OrganizationId == _orgId)
             .ToListAsync();
 
-        var interviewsAll = await _db.Interviews.CountAsync(i => i.InterviewDate >= start && i.InterviewDate < endExclusive);
+        var interviewsAll = await _db.Interviews.CountAsync(i =>
+            i.InterviewDate >= start && i.InterviewDate < endExclusive && i.Submission.Consultant.OrganizationId == _orgId);
 
         return new WeeklySummaryReportDto
         {
@@ -194,7 +205,8 @@ public class ReportsService : IReportsService
             TotalJobsApplied = allActivities.Sum(a => a.JobsAppliedCount),
             TotalVendorReachOuts = allActivities.Sum(a => a.VendorReachedOutCount),
             TotalVendorResponses = allActivities.Sum(a => a.VendorResponseCount),
-            TotalSubmissions = await _db.Submissions.CountAsync(s => s.SubmissionDate >= start && s.SubmissionDate < endExclusive),
+            TotalSubmissions = await _db.Submissions.CountAsync(s =>
+                s.SubmissionDate >= start && s.SubmissionDate < endExclusive && s.Consultant.OrganizationId == _orgId),
             TotalInterviews = interviewsAll
         };
     }
@@ -208,7 +220,7 @@ public class ReportsService : IReportsService
     public async Task<IReadOnlyList<ConsultantPerformanceDto>> GetConsultantPerformanceAsync(int? consultantId = null)
     {
         var list = await _db.Consultants.AsNoTracking()
-            .Where(c => !c.User.IsDeleted)
+            .Where(c => c.OrganizationId == _orgId && !c.User.IsDeleted)
             .Where(c => !consultantId.HasValue || c.Id == consultantId.Value)
             .Include(c => c.JobApplications)
             .Include(c => c.DailyActivities)
@@ -230,7 +242,7 @@ public class ReportsService : IReportsService
     public async Task<IReadOnlyList<SalesPerformanceDto>> GetSalesPerformanceAsync(int? salesRecruiterId = null)
     {
         var list = await _db.SalesRecruiters.AsNoTracking()
-            .Where(s => !s.User.IsDeleted)
+            .Where(s => s.OrganizationId == _orgId && !s.User.IsDeleted)
             .Where(s => !salesRecruiterId.HasValue || s.Id == salesRecruiterId.Value)
             .Include(s => s.Submissions)
             .ThenInclude(x => x.Interviews)
@@ -251,6 +263,7 @@ public class ReportsService : IReportsService
     public async Task<IReadOnlyList<SubmissionReportRowDto>> GetSubmissionsReportAsync()
     {
         return await _db.Submissions.AsNoTracking()
+            .Where(s => s.Consultant.OrganizationId == _orgId)
             .OrderByDescending(s => s.SubmissionDate)
             .Take(500)
             .Select(s => new SubmissionReportRowDto
@@ -270,6 +283,7 @@ public class ReportsService : IReportsService
     public async Task<IReadOnlyList<InterviewReportRowDto>> GetInterviewsReportAsync()
     {
         return await _db.Interviews.AsNoTracking()
+            .Where(i => i.Submission.Consultant.OrganizationId == _orgId)
             .OrderByDescending(i => i.InterviewDate)
             .Take(500)
             .Select(i => new InterviewReportRowDto
@@ -289,7 +303,7 @@ public class ReportsService : IReportsService
     public async Task<IReadOnlyList<OnboardingStatusReportDto>> GetOnboardingStatusAsync()
     {
         return await _db.Consultants.AsNoTracking()
-            .Where(c => !c.User.IsDeleted)
+            .Where(c => c.OrganizationId == _orgId && !c.User.IsDeleted)
             .OrderBy(c => c.LastName)
             .Select(c => new OnboardingStatusReportDto
             {

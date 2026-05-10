@@ -6,6 +6,7 @@ public static class EmployeeIdGenerator
 {
     public static string GetPrefix(UserRole role) => role switch
     {
+        UserRole.PlatformAdmin => "PLT",
         UserRole.Admin => "ADM",
         UserRole.Management => "MGT",
         UserRole.SalesRecruiter => "SAL",

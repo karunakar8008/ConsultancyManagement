@@ -8,6 +8,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { AuthService } from '../../core/services/auth.service';
 import { BrandBannerComponent } from '../../shared/brand-banner/brand-banner.component';
+import { environment } from '../../../environments/environment';
 import { ToastrService } from 'ngx-toastr';
 import { finalize } from 'rxjs';
 
@@ -36,6 +37,10 @@ export class LoginComponent {
   error: string | null = null;
 
   form = this.fb.nonNullable.group({
+    organizationSlug: [
+      environment.defaultOrganizationSlug ?? 'default',
+      [Validators.required, Validators.pattern(/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/)]
+    ],
     email: ['', [Validators.required, Validators.email]],
     password: ['', Validators.required]
   });
@@ -46,14 +51,14 @@ export class LoginComponent {
       this.form.markAllAsTouched();
       return;
     }
-    const { email, password } = this.form.getRawValue();
+    const { organizationSlug, email, password } = this.form.getRawValue();
     this.loading = true;
     this.auth
-      .login(email, password)
+      .login(organizationSlug, email, password)
       .pipe(finalize(() => (this.loading = false)))
       .subscribe({
         next: (res) => {
-          this.auth.saveToken(res.token);
+          this.auth.saveSession(res.token, res.organizationSlug);
           this.toast.success('Welcome back');
           this.auth.redirectByRole();
         },

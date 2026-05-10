@@ -19,21 +19,25 @@ public class ManagementPortalService : IManagementPortalService
     private readonly IHostEnvironment _env;
     private readonly INotificationService _notifications;
     private readonly UserManager<ApplicationUser> _users;
+    private readonly int _orgId;
 
     public ManagementPortalService(
         ApplicationDbContext db,
         IHostEnvironment env,
         INotificationService notifications,
-        UserManager<ApplicationUser> users)
+        UserManager<ApplicationUser> users,
+        ICurrentOrganization tenant)
     {
         _db = db;
         _env = env;
         _notifications = notifications;
         _users = users;
+        _orgId = tenant.OrganizationId;
     }
 
     private static int StoredAuthorityRank(string? authority) => authority switch
     {
+        nameof(UserRole.PlatformAdmin) => 4,
         nameof(UserRole.Admin) => 4,
         nameof(UserRole.Management) => 3,
         nameof(UserRole.SalesRecruiter) => 2,
@@ -42,7 +46,7 @@ public class ManagementPortalService : IManagementPortalService
 
     private static int ReviewerRank(IList<string> roles)
     {
-        if (roles.Contains(nameof(UserRole.Admin))) return 4;
+        if (roles.Contains(nameof(UserRole.PlatformAdmin)) || roles.Contains(nameof(UserRole.Admin))) return 4;
         if (roles.Contains(nameof(UserRole.Management))) return 3;
         if (roles.Contains(nameof(UserRole.SalesRecruiter))) return 2;
         return 0;
@@ -50,7 +54,8 @@ public class ManagementPortalService : IManagementPortalService
 
     private static string? PrimaryReviewerAuthority(IList<string> roles)
     {
-        if (roles.Contains(nameof(UserRole.Admin))) return nameof(UserRole.Admin);
+        if (roles.Contains(nameof(UserRole.PlatformAdmin)) || roles.Contains(nameof(UserRole.Admin)))
+            return nameof(UserRole.Admin);
         if (roles.Contains(nameof(UserRole.Management))) return nameof(UserRole.Management);
         if (roles.Contains(nameof(UserRole.SalesRecruiter))) return nameof(UserRole.SalesRecruiter);
         return null;
@@ -62,18 +67,22 @@ public class ManagementPortalService : IManagementPortalService
         var tomorrow = today.AddDays(1);
         return new ManagementDashboardDto
         {
-            TotalConsultants = await _db.Consultants.CountAsync(c => !c.User.IsDeleted),
-            PendingOnboarding = await _db.OnboardingTasks.CountAsync(t => t.Status != "Completed"),
-            PendingDocuments = await _db.Documents.CountAsync(d => d.Status == "Pending"),
-            TotalSubmissions = await _db.Submissions.CountAsync(),
-            InterviewsScheduled = await _db.Interviews.CountAsync(i => i.InterviewDate >= today && i.InterviewDate < tomorrow)
+            TotalConsultants = await _db.Consultants.CountAsync(c => c.OrganizationId == _orgId && !c.User.IsDeleted),
+            PendingOnboarding = await _db.OnboardingTasks.CountAsync(t =>
+                t.Status != "Completed" && t.Consultant.OrganizationId == _orgId),
+            PendingDocuments = await _db.Documents.CountAsync(d =>
+                d.Status == "Pending" && d.Consultant.OrganizationId == _orgId),
+            TotalSubmissions = await _db.Submissions.CountAsync(s => s.Consultant.OrganizationId == _orgId),
+            InterviewsScheduled = await _db.Interviews.CountAsync(i =>
+                i.InterviewDate >= today && i.InterviewDate < tomorrow &&
+                i.Submission.Consultant.OrganizationId == _orgId)
         };
     }
 
     public async Task<IReadOnlyList<SalesRecruiterListDto>> GetSalesRecruitersAsync()
     {
         return await _db.SalesRecruiters.AsNoTracking()
-            .Where(s => !s.User.IsDeleted)
+            .Where(s => s.OrganizationId == _orgId && !s.User.IsDeleted)
             .OrderBy(s => s.LastName)
             .Select(s => new SalesRecruiterListDto
             {
@@ -92,7 +101,7 @@ public class ManagementPortalService : IManagementPortalService
     public async Task<IReadOnlyList<ConsultantListDto>> GetConsultantsAsync()
     {
         return await _db.Consultants.AsNoTracking()
-            .Where(c => !c.User.IsDeleted)
+            .Where(c => c.OrganizationId == _orgId && !c.User.IsDeleted)
             .OrderBy(c => c.LastName)
             .Select(c => new ConsultantListDto
             {
@@ -114,7 +123,7 @@ public class ManagementPortalService : IManagementPortalService
     public async Task<IReadOnlyList<DailyActivityDto>> GetConsultantActivitiesAsync(int consultantId)
     {
         return await _db.DailyActivities.AsNoTracking()
-            .Where(d => d.ConsultantId == consultantId)
+            .Where(d => d.ConsultantId == consultantId && d.Consultant.OrganizationId == _orgId)
             .OrderByDescending(d => d.ActivityDate)
             .Select(d => new DailyActivityDto
             {
@@ -132,6 +141,7 @@ public class ManagementPortalService : IManagementPortalService
     public async Task<IReadOnlyList<SubmissionReportRowDto>> GetSubmissionsAsync()
     {
         return await _db.Submissions.AsNoTracking()
+            .Where(s => s.Consultant.OrganizationId == _orgId)
             .OrderByDescending(s => s.SubmissionDate)
             .Select(s => new SubmissionReportRowDto
             {
@@ -149,6 +159,7 @@ public class ManagementPortalService : IManagementPortalService
     public async Task<IReadOnlyList<OnboardingTaskDto>> GetOnboardingTasksAsync()
     {
         return await _db.OnboardingTasks.AsNoTracking()
+            .Where(t => t.Consultant.OrganizationId == _orgId)
             .OrderBy(t => t.DueDate)
             .Select(t => new OnboardingTaskDto
             {
@@ -165,7 +176,7 @@ public class ManagementPortalService : IManagementPortalService
 
     public async Task<(bool Success, string? Error, int? Id)> CreateOnboardingTaskAsync(CreateOnboardingTaskRequestDto dto)
     {
-        if (!await _db.Consultants.AnyAsync(c => c.Id == dto.ConsultantId))
+        if (!await _db.Consultants.AnyAsync(c => c.Id == dto.ConsultantId && c.OrganizationId == _orgId))
             return (false, "Consultant not found.", null);
         var t = new OnboardingTask
         {
@@ -184,8 +195,9 @@ public class ManagementPortalService : IManagementPortalService
 
     public async Task<(bool Success, string? Error)> UpdateOnboardingTaskAsync(int id, CreateOnboardingTaskRequestDto dto)
     {
-        var t = await _db.OnboardingTasks.FirstOrDefaultAsync(x => x.Id == id);
+        var t = await _db.OnboardingTasks.Include(x => x.Consultant).FirstOrDefaultAsync(x => x.Id == id);
         if (t is null) return (false, "Task not found.");
+        if (t.Consultant.OrganizationId != _orgId) return (false, "Task not found.");
         t.TaskName = dto.TaskName;
         t.Description = dto.Description;
         t.Status = dto.Status;
@@ -200,6 +212,7 @@ public class ManagementPortalService : IManagementPortalService
     public async Task<IReadOnlyList<DocumentDto>> GetDocumentsAsync()
     {
         var rows = await _db.Documents.AsNoTracking()
+            .Where(d => d.Consultant.OrganizationId == _orgId)
             .OrderByDescending(d => d.UploadedAt)
             .Select(d => new
             {
@@ -236,6 +249,7 @@ public class ManagementPortalService : IManagementPortalService
         var list = new List<ManagementFileCatalogItemDto>();
 
         var docs = await _db.Documents.AsNoTracking()
+            .Where(d => d.Consultant.OrganizationId == _orgId)
             .OrderByDescending(d => d.UploadedAt)
             .Select(d => new
             {
@@ -268,7 +282,7 @@ public class ManagementPortalService : IManagementPortalService
         }
 
         var vendors = await _db.Vendors.AsNoTracking()
-            .Where(v => v.ContactProofFilePath != null && v.ContactProofFilePath != "")
+            .Where(v => v.OrganizationId == _orgId && v.ContactProofFilePath != null && v.ContactProofFilePath != "")
             .Select(v => new
             {
                 v.Id,
@@ -314,7 +328,7 @@ public class ManagementPortalService : IManagementPortalService
         }
 
         var subs = await _db.Submissions.AsNoTracking()
-            .Where(s => s.ProofFilePath != null && s.ProofFilePath != "")
+            .Where(s => s.Consultant.OrganizationId == _orgId && s.ProofFilePath != null && s.ProofFilePath != "")
             .Select(s => new
             {
                 s.Id,
@@ -351,7 +365,8 @@ public class ManagementPortalService : IManagementPortalService
         }
 
         var ints = await _db.Interviews.AsNoTracking()
-            .Where(i => i.InviteProofFilePath != null && i.InviteProofFilePath != "")
+            .Where(i => i.Submission.Consultant.OrganizationId == _orgId &&
+                i.InviteProofFilePath != null && i.InviteProofFilePath != "")
             .Select(i => new
             {
                 i.Id,
@@ -399,28 +414,31 @@ public class ManagementPortalService : IManagementPortalService
         switch (k)
         {
             case "document":
-                var d = await _db.Documents.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
+                var d = await _db.Documents.AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id == id && x.Consultant.OrganizationId == _orgId);
                 if (d is null) return (false, "Document not found.", null, string.Empty);
                 rel = d.FilePath;
                 preferredName = d.FileName;
                 break;
             case "vendor":
             case "vendorcontactproof":
-                var v = await _db.Vendors.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
+                var v = await _db.Vendors.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id && x.OrganizationId == _orgId);
                 if (v is null) return (false, "Vendor not found.", null, string.Empty);
                 rel = v.ContactProofFilePath;
                 preferredName = $"{v.VendorCode}-contact{Path.GetExtension(rel ?? "")}";
                 break;
             case "submission":
             case "submissionproof":
-                var s = await _db.Submissions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
+                var s = await _db.Submissions.AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id == id && x.Consultant.OrganizationId == _orgId);
                 if (s is null) return (false, "Submission not found.", null, string.Empty);
                 rel = s.ProofFilePath;
                 preferredName = $"{s.SubmissionCode}-proof{Path.GetExtension(rel ?? "")}";
                 break;
             case "interview":
             case "interviewinviteproof":
-                var i = await _db.Interviews.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
+                var i = await _db.Interviews.AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id == id && x.Submission.Consultant.OrganizationId == _orgId);
                 if (i is null) return (false, "Interview not found.", null, string.Empty);
                 rel = i.InviteProofFilePath;
                 preferredName = $"{i.InterviewCode}-invite{Path.GetExtension(rel ?? "")}";
@@ -440,8 +458,9 @@ public class ManagementPortalService : IManagementPortalService
             return (false, "Status must be Approved, Rejected, or Re-check.");
 
         var status = dto.Status.Trim();
-        var d = await _db.Documents.FirstOrDefaultAsync(x => x.Id == id);
+        var d = await _db.Documents.Include(x => x.Consultant).FirstOrDefaultAsync(x => x.Id == id);
         if (d is null) return (false, "Document not found.");
+        if (d.Consultant.OrganizationId != _orgId) return (false, "Document not found.");
 
         var user = await _users.FindByIdAsync(reviewerUserId);
         if (user is null) return (false, "User not found.");
@@ -454,7 +473,7 @@ public class ManagementPortalService : IManagementPortalService
 
         var now = DateTime.UtcNow;
 
-        if (roles.Contains(nameof(UserRole.Admin)))
+        if (roles.Contains(nameof(UserRole.PlatformAdmin)) || roles.Contains(nameof(UserRole.Admin)))
         {
             d.Status = status;
             d.ReviewedAt = now;

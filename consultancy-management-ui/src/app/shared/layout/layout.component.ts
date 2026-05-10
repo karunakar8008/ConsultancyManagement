@@ -70,6 +70,12 @@ export class LayoutComponent implements OnInit {
   notificationItems: AppNotification[] = [];
 
   readonly allNav: NavItem[] = [
+    {
+      label: 'Platform · Tenants',
+      path: '/platform/tenants',
+      icon: 'apartment',
+      roles: ['PlatformAdmin']
+    },
     { label: 'Dashboard', path: '/admin/dashboard', icon: 'dashboard', roles: ['Admin'] },
     { label: 'Users', path: '/admin/users', icon: 'people', roles: ['Admin'] },
     { label: 'Consultants', path: '/admin/consultants', icon: 'engineering', roles: ['Admin'] },
@@ -109,7 +115,10 @@ export class LayoutComponent implements OnInit {
 
   get navItems(): NavItem[] {
     const roles = this.auth.getRoles();
-    return this.allNav.filter((n) => n.roles.some((r) => roles.includes(r)));
+    const isPlatform = roles.includes('PlatformAdmin');
+    return this.allNav.filter((n) =>
+      n.roles.some((r) => roles.includes(r) || (isPlatform && r === 'Admin'))
+    );
   }
 
   ngOnInit(): void {

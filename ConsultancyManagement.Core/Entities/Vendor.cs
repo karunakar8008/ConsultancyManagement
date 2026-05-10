@@ -3,6 +3,8 @@ namespace ConsultancyManagement.Core.Entities;
 public class Vendor
 {
     public int Id { get; set; }
+    public int OrganizationId { get; set; }
+    public Organization Organization { get; set; } = null!;
     /// <summary>Human-readable unique code (e.g. VEN-ABC12DEF34).</summary>
     public string VendorCode { get; set; } = string.Empty;
     /// <summary>Sales recruiter who owns this vendor record.</summary>

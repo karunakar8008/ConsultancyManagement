@@ -82,6 +82,9 @@ namespace ConsultancyManagement.Infrastructure.Migrations.ApplicationDb
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<int>("OrganizationId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("PasswordHash")
                         .HasColumnType("text");
 
@@ -106,15 +109,17 @@ namespace ConsultancyManagement.Infrastructure.Migrations.ApplicationDb
 
                     b.HasKey("Id");
 
-                    b.HasIndex("EmployeeId")
-                        .IsUnique();
-
                     b.HasIndex("NormalizedEmail")
                         .HasDatabaseName("EmailIndex");
 
-                    b.HasIndex("NormalizedUserName")
-                        .IsUnique()
-                        .HasDatabaseName("UserNameIndex");
+                    b.HasIndex("OrganizationId", "EmployeeId")
+                        .IsUnique();
+
+                    b.HasIndex("OrganizationId", "NormalizedEmail")
+                        .IsUnique();
+
+                    b.HasIndex("OrganizationId", "NormalizedUserName")
+                        .IsUnique();
 
                     b.ToTable("Users", (string)null);
                 });
@@ -183,6 +188,9 @@ namespace ConsultancyManagement.Infrastructure.Migrations.ApplicationDb
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<int>("OrganizationId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("PhoneNumber")
                         .HasColumnType("text");
 
@@ -207,6 +215,8 @@ namespace ConsultancyManagement.Infrastructure.Migrations.ApplicationDb
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId");
 
                     b.HasIndex("UserId")
                         .IsUnique();
@@ -513,6 +523,9 @@ namespace ConsultancyManagement.Infrastructure.Migrations.ApplicationDb
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<int>("OrganizationId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("PhoneNumber")
                         .HasColumnType("text");
 
@@ -528,6 +541,8 @@ namespace ConsultancyManagement.Infrastructure.Migrations.ApplicationDb
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId");
 
                     b.HasIndex("UserId")
                         .IsUnique();
@@ -574,6 +589,36 @@ namespace ConsultancyManagement.Infrastructure.Migrations.ApplicationDb
                     b.HasIndex("ConsultantId");
 
                     b.ToTable("OnboardingTasks");
+                });
+
+            modelBuilder.Entity("ConsultancyManagement.Core.Entities.Organization", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Slug")
+                        .IsUnique();
+
+                    b.ToTable("Organizations");
                 });
 
             modelBuilder.Entity("ConsultancyManagement.Core.Entities.SalesManagementAssignment", b =>
@@ -634,6 +679,9 @@ namespace ConsultancyManagement.Infrastructure.Migrations.ApplicationDb
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<int>("OrganizationId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("PhoneNumber")
                         .HasColumnType("text");
 
@@ -649,6 +697,8 @@ namespace ConsultancyManagement.Infrastructure.Migrations.ApplicationDb
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId");
 
                     b.HasIndex("UserId")
                         .IsUnique();
@@ -798,6 +848,9 @@ namespace ConsultancyManagement.Infrastructure.Migrations.ApplicationDb
                     b.Property<string>("Notes")
                         .HasColumnType("text");
 
+                    b.Property<int>("OrganizationId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("PhoneNumber")
                         .IsRequired()
                         .HasColumnType("text");
@@ -822,7 +875,7 @@ namespace ConsultancyManagement.Infrastructure.Migrations.ApplicationDb
 
                     b.HasIndex("SalesRecruiterId");
 
-                    b.HasIndex("VendorCode")
+                    b.HasIndex("OrganizationId", "VendorCode")
                         .IsUnique();
 
                     b.ToTable("Vendors");
@@ -960,13 +1013,32 @@ namespace ConsultancyManagement.Infrastructure.Migrations.ApplicationDb
                     b.ToTable("UserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("ConsultancyManagement.Core.Entities.ApplicationUser", b =>
+                {
+                    b.HasOne("ConsultancyManagement.Core.Entities.Organization", "Organization")
+                        .WithMany("Users")
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Organization");
+                });
+
             modelBuilder.Entity("ConsultancyManagement.Core.Entities.Consultant", b =>
                 {
+                    b.HasOne("ConsultancyManagement.Core.Entities.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("ConsultancyManagement.Core.Entities.ApplicationUser", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("Organization");
 
                     b.Navigation("User");
                 });
@@ -1047,11 +1119,19 @@ namespace ConsultancyManagement.Infrastructure.Migrations.ApplicationDb
 
             modelBuilder.Entity("ConsultancyManagement.Core.Entities.ManagementUser", b =>
                 {
+                    b.HasOne("ConsultancyManagement.Core.Entities.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("ConsultancyManagement.Core.Entities.ApplicationUser", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("Organization");
 
                     b.Navigation("User");
                 });
@@ -1088,11 +1168,19 @@ namespace ConsultancyManagement.Infrastructure.Migrations.ApplicationDb
 
             modelBuilder.Entity("ConsultancyManagement.Core.Entities.SalesRecruiter", b =>
                 {
+                    b.HasOne("ConsultancyManagement.Core.Entities.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("ConsultancyManagement.Core.Entities.ApplicationUser", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("Organization");
 
                     b.Navigation("User");
                 });
@@ -1131,12 +1219,20 @@ namespace ConsultancyManagement.Infrastructure.Migrations.ApplicationDb
                         .HasForeignKey("LinkedConsultantId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("ConsultancyManagement.Core.Entities.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("ConsultancyManagement.Core.Entities.SalesRecruiter", "SalesRecruiter")
                         .WithMany("Vendors")
                         .HasForeignKey("SalesRecruiterId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("LinkedConsultant");
+
+                    b.Navigation("Organization");
 
                     b.Navigation("SalesRecruiter");
                 });
@@ -1212,6 +1308,11 @@ namespace ConsultancyManagement.Infrastructure.Migrations.ApplicationDb
             modelBuilder.Entity("ConsultancyManagement.Core.Entities.ManagementUser", b =>
                 {
                     b.Navigation("SalesAssignments");
+                });
+
+            modelBuilder.Entity("ConsultancyManagement.Core.Entities.Organization", b =>
+                {
+                    b.Navigation("Users");
                 });
 
             modelBuilder.Entity("ConsultancyManagement.Core.Entities.SalesRecruiter", b =>

@@ -33,7 +33,8 @@ public class JwtTokenService
             new(ClaimTypes.NameIdentifier, user.Id),
             new(ClaimTypes.Email, user.Email ?? string.Empty),
             new(ClaimTypes.Name, $"{user.FirstName} {user.LastName}".Trim()),
-            new("employee_id", user.EmployeeId ?? string.Empty)
+            new("employee_id", user.EmployeeId ?? string.Empty),
+            new("organization_id", user.OrganizationId.ToString())
         };
         claims.AddRange(roles.Select(r => new Claim(ClaimTypes.Role, r)));
 

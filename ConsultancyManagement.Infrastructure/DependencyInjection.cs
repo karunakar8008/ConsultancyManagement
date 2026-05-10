@@ -26,6 +26,7 @@ public static class DependencyInjection
         services.AddDbContext<ApplicationDbContext>(options =>
             options.UseNpgsql(resolvedConnectionString));
         services.Configure<SmtpSettings>(configuration.GetSection("Smtp"));
+        services.AddHttpContextAccessor();
 
         services.AddIdentity<ApplicationUser, IdentityRole>(options =>
             {
@@ -34,11 +35,12 @@ public static class DependencyInjection
                 options.Password.RequireUppercase = true;
                 options.Password.RequireNonAlphanumeric = true;
                 options.Password.RequiredLength = 6;
-                options.User.RequireUniqueEmail = true;
+                options.User.RequireUniqueEmail = false;
             })
             .AddEntityFrameworkStores<ApplicationDbContext>()
             .AddDefaultTokenProviders();
 
+        services.AddScoped<ICurrentOrganization, CurrentOrganization>();
         services.AddScoped<JwtTokenService>();
         services.AddScoped<IEmailService, SmtpEmailService>();
         services.AddScoped<IAuthService, AuthService>();
@@ -49,6 +51,7 @@ public static class DependencyInjection
         services.AddScoped<IReportsService, ReportsService>();
         services.AddScoped<IDirectoryService, DirectoryService>();
         services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<IPlatformService, PlatformService>();
 
         return services;
     }

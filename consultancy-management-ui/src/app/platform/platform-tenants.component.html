@@ -1,0 +1,80 @@
+<div class="page">
+  <h2 class="page-title">Platform · Tenants</h2>
+  <p class="lede">
+    You operate the software: create organizations (tenants), set their login code, and assign each tenant’s first
+    <strong>Admin</strong>. Tenant admins then manage only their own users and data. Use the sidebar to open your own
+    tenant’s admin tools when you need them.
+  </p>
+
+  <mat-card class="card-create">
+    <mat-card-header>
+      <mat-card-title>New organization</mat-card-title>
+      <mat-card-subtitle>Slug becomes the organization code on the login screen (lowercase, hyphens ok).</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <form [formGroup]="createForm" class="create-row" (ngSubmit)="createTenant()">
+        <mat-form-field appearance="outline">
+          <mat-label>Display name</mat-label>
+          <input matInput formControlName="name" />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Slug / org code</mat-label>
+          <input matInput formControlName="slug" placeholder="e.g. acme-consulting" />
+        </mat-form-field>
+        <button mat-flat-button color="primary" type="submit" [disabled]="creating || createForm.invalid">
+          @if (creating) {
+            Creating…
+          } @else {
+            Create tenant
+          }
+        </button>
+      </form>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="card-table">
+    <mat-card-header>
+      <mat-card-title>All organizations</mat-card-title>
+      <mat-card-subtitle>
+        @if (loading) {
+          Loading…
+        } @else {
+          {{ organizations.length }} tenant(s)
+        }
+      </mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <table mat-table [dataSource]="organizations" class="mat-elevation-z0 org-table">
+        <ng-container matColumnDef="name">
+          <th mat-header-cell *matHeaderCellDef>Name</th>
+          <td mat-cell *matCellDef="let o">{{ o.name }}</td>
+        </ng-container>
+        <ng-container matColumnDef="slug">
+          <th mat-header-cell *matHeaderCellDef>Login code</th>
+          <td mat-cell *matCellDef="let o"><code>{{ o.slug }}</code></td>
+        </ng-container>
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef>Status</th>
+          <td mat-cell *matCellDef="let o">
+            <mat-chip-set>
+              <mat-chip [highlighted]="o.isActive" [disabled]="!o.isActive">
+                {{ o.isActive ? 'Active' : 'Inactive' }}
+              </mat-chip>
+            </mat-chip-set>
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef></th>
+          <td mat-cell *matCellDef="let o">
+            <button mat-stroked-button color="primary" type="button" (click)="openBootstrapAdmin(o)">
+              <mat-icon>person_add</mat-icon>
+              Assign tenant admin
+            </button>
+          </td>
+        </ng-container>
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+      </table>
+    </mat-card-content>
+  </mat-card>
+</div>
